@@ -31,6 +31,20 @@
         <span id="login-error" class="error" role="alert"></span>
       </div>
     </form>
+    <div class="signup-divider"><span>New to the platform?</span></div>
+    <details class="signup-details">
+      <summary>Create a Learner account</summary>
+      <form id="registration-form" class="login-form signup-form">
+        <label>Full name<input id="registration-name" type="text" autocomplete="name" maxlength="100" required></label>
+        <label>Email<input id="registration-email" type="email" autocomplete="email" maxlength="120" required></label>
+        <label class="wide">Password<input id="registration-password" type="password" autocomplete="new-password" minlength="10" maxlength="1024" required></label>
+        <div class="form-actions">
+          <button id="registration-button" type="submit">Create account</button>
+          <span id="registration-error" class="error" role="alert"></span>
+        </div>
+      </form>
+      <p class="login-hint">Public registration creates a Learner L1 account. Higher-privilege roles are assigned by platform administration.</p>
+    </details>
     <p class="login-hint">For local seeded demo accounts only, the original lab generator used password pw followed by the user ID. Never use these demo credentials outside this local project.</p>
   </section>
 
