@@ -130,7 +130,7 @@ async function processSubmission(pool, submission, testCases, language) {
   }
 }
 
-module.exports = function createSubmissionRouter({ pool, authRequired, allowRoles }) {
+function createSubmissionRouter({ pool, authRequired, allowRoles }) {
   const router = express.Router();
 
   router.get('/languages', async (req, res, next) => {
@@ -334,4 +334,7 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
   });
 
   return router;
-};
+}
+
+module.exports = createSubmissionRouter;
+module.exports.processSubmission = processSubmission;
