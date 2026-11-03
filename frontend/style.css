@@ -118,3 +118,12 @@
 .add-test-case{margin-top:4px}
 .locked-note{padding:10px 12px;border-left:3px solid #d6a85b;border-radius:6px;background:#322916;color:#f6d89c;font-size:12px;line-height:1.5}
 @media(max-width:700px){.problem-test-case-fields{grid-template-columns:1fr}.problem-topic-options{grid-template-columns:1fr 1fr}}
+
+
+/* Reviewer access to controlled sample and hidden-case evidence */
+.review-test-details{margin:13px 0;padding:11px 12px;border:1px solid #344965;border-radius:10px;background:#0c172a}
+.review-test-details summary{color:#bfe8dc;font-size:12px;font-weight:800;cursor:pointer}
+.review-test-case{margin-top:12px;padding-top:10px;border-top:1px solid #293954}
+.review-test-case strong{display:block;font-size:11px;color:#f4d59a}
+.review-test-label{display:block;margin:8px 0 5px;color:#8fa5c5;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.review-test-data{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:9px;border-radius:7px;background:#060d19;color:#c9e7db;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
