@@ -82,7 +82,7 @@ function updateAccountUI() {
   $('#account-status').textContent = signedIn
     ? currentUser.name + ' · ' + currentUser.role_name
     : 'Not signed in';
-  $('#new-button').hidden = !(signedIn && currentUser.role_category === 'Organizer');
+  $('#new-button').hidden = !(signedIn && ['Organizer','Admin'].includes(currentUser.role_category));
   $('#progress-panel').hidden = !(signedIn && currentUser.role_category === 'Learner');
   $('#create-contest-button').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
   $('#assessment-section').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
@@ -1036,6 +1036,9 @@ async function openForm(problem = null) {
   $('#input-format').value = problem?.input_format ?? '';
   $('#output-format').value = problem?.output_format ?? '';
   $('#constraints').value = problem?.constraints ?? '';
+  const adminCreating = !problem && currentUser?.role_category === 'Admin';
+  $('#problem-owner-field').hidden = !adminCreating;
+  $('#problem-owner').replaceChildren();
   $('#form-panel').hidden = false;
   $('#problem-test-case-list').replaceChildren(element('p', 'muted', 'Loading test-case editor…'));
   $('#problem-test-cases-locked').hidden = true;
@@ -1044,6 +1047,25 @@ async function openForm(problem = null) {
   $('#title').focus();
   $('#form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
+    if (adminCreating) {
+      const owners = await api('/api/problem-organizers');
+      const select = $('#problem-owner');
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select an Organizer owner';
+      placeholder.selected = true;
+      select.append(placeholder);
+      for (const owner of owners.organizers || []) {
+        const option = document.createElement('option');
+        option.value = owner.organizer_id;
+        option.textContent = owner.organizer_name + ' · ' + owner.organization_name;
+        select.append(option);
+      }
+      if (!owners.organizers?.length) {
+        placeholder.textContent = 'No active Organizer profiles available';
+        $('#save-button').disabled = true;
+      }
+    }
     const managed = problem
       ? await api('/api/problems/' + problem.problem_id + '/test-cases/manage')
       : { test_cases: [{ input_data: '', expected_output: '', is_hidden: false }], topic_ids: [], test_cases_locked: false };
@@ -1752,6 +1774,9 @@ $('#problem-form').addEventListener('submit', async (event) => {
     topic_ids: collectProblemTopicIds(),
     test_cases: collectProblemTestCases()
   };
+  if (!id && currentUser?.role_category === 'Admin') {
+    body.organizer_id = Number($('#problem-owner').value);
+  }
   $('#save-button').disabled = true;
   $('#form-error').textContent = '';
   try {
