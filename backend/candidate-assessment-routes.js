@@ -13,6 +13,15 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
   const router = express.Router();
 
   async function finishInvite(assessmentId,candidateId) {
+    const pending = await pool.query(
+      `SELECT COUNT(*)::integer AS count
+       FROM public.submission
+       WHERE assessment_id=$1 AND candidate_id=$2
+         AND execution_status IN ('PENDING','RUNNING')`,
+      [assessmentId,candidateId]
+    );
+    if (pending.rows[0].count > 0) return null;
+
     const result = await pool.query(
       `UPDATE public.invites i
        SET status='Completed',
@@ -70,8 +79,10 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
       }
       if (invite.status === 'Started' && secondsRemaining(invite)<=0) {
         const completion = await finishInvite(invite.assessment_id,invite.candidate_id);
-        invite.status='Completed';
-        invite.score = completion?.score ?? invite.score;
+        if (completion) {
+          invite.status='Completed';
+          invite.score=completion.score;
+        }
       }
       req.candidateInvite=invite;
       next();
