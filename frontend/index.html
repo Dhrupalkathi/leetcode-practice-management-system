@@ -17,9 +17,19 @@
       <span id="account-status" class="phase-tag">Not signed in</span>
       <button id="progress-button" class="secondary" type="button" hidden>My progress</button>
       <button id="profile-button" class="secondary" type="button" hidden>Profile</button>
+      <button id="notification-button" class="secondary notification-button" type="button" hidden>Inbox <span id="notification-unread" class="notification-unread" hidden>0</span></button>
       <button id="logout-button" class="secondary" type="button" hidden>Log out</button>
     </div>
   </header>
+
+  <section id="notification-panel" class="workspace-card notification-panel" hidden>
+    <div class="section-heading">
+      <div><p class="eyebrow">YOUR ACTIVITY</p><h2>Notifications</h2></div>
+      <div class="notification-panel-actions"><button id="notifications-read-all" class="secondary" type="button">Mark all read</button><button id="notifications-close" class="secondary" type="button">Close</button></div>
+    </div>
+    <p id="notifications-status" class="muted"></p>
+    <div id="notifications-list" class="notifications-list"></div>
+  </section>
 
   <section id="profile-panel" class="workspace-card profile-panel" hidden>
     <div class="section-heading">
