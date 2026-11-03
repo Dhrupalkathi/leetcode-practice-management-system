@@ -146,3 +146,14 @@
 .admin-activity-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#4e8b85,#a7f3d0)}
 .admin-assessment-row{padding:12px;border:1px solid #293954;border-radius:9px;margin-top:8px}
 @media(max-width:700px){.admin-report-columns{grid-template-columns:1fr}.admin-report-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Self-service profile and password settings */
+.profile-panel{margin-top:-10px}
+.profile-form{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:16px}
+.profile-form label{display:grid;gap:7px;color:#bac9e4;font-size:12px}
+.profile-form input,.profile-form select{width:100%;border:1px solid #354765;border-radius:9px;background:#0b1427;color:#edf2ff;padding:11px 12px}
+.profile-password-section{margin-top:18px;padding-top:16px;border-top:1px solid #293954}
+.profile-password-section h3{margin:0;font-size:15px}
+.profile-password-section .profile-form{margin-top:12px}
+@media(max-width:700px){.profile-form{grid-template-columns:1fr}}
