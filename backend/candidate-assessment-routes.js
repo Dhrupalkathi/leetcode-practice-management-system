@@ -93,6 +93,22 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
 
   router.use(invitationContext);
 
+  router.post('/activity', requireStarted, async (req,res,next)=>{
+    const allowed=['TAB_HIDDEN','WINDOW_BLUR','COPY_ATTEMPT','PASTE_ATTEMPT'];
+    const eventType=String(req.body.event_type||'').toUpperCase();
+    if(!allowed.includes(eventType)) return res.status(400).json({error:'Unsupported activity indicator.'});
+    const metadata={};
+    if(typeof req.body.page==='string') metadata.page=req.body.page.slice(0,80);
+    try {
+      const invite=req.candidateInvite;
+      const result=await pool.query(
+        `INSERT INTO public.suspicious_activity(assessment_id,candidate_id,event_type,metadata)
+         VALUES($1,$2,$3,$4::jsonb) RETURNING activity_id,detected_at`,
+        [invite.assessment_id,invite.candidate_id,eventType,JSON.stringify(metadata)]
+      );
+      res.status(202).json({recorded:true,activity_id:result.rows[0].activity_id,detected_at:result.rows[0].detected_at});
+    } catch(error){next(error);}
+  });
   router.get('/me', async (req,res,next)=>{
     const invite=req.candidateInvite;
     try {
