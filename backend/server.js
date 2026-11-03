@@ -16,6 +16,7 @@ const createProgressRouter = require('./progress-routes');
 const createContestRouter = require('./contest-routes');
 const createAssessmentRouter = require('./assessment-routes');
 const createCandidateAssessmentRouter = require('./candidate-assessment-routes');
+const createProfileRouter = require('./profile-routes');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -219,6 +220,7 @@ app.use('/api', createProgressRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createContestRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createAssessmentRouter({ pool, authRequired, allowRoles }));
 app.use('/api/candidate-assessment', createCandidateAssessmentRouter({ pool }));
+app.use('/api', createProfileRouter({ pool, authRequired }));
 
 
 app.use(express.static(path.join(__dirname,'..','frontend')));
