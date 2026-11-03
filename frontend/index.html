@@ -120,6 +120,34 @@
     <p class="muted">Hidden judging tests are not displayed here.</p>
     <div id="detail-samples" class="sample-list"></div>
   </section>
+  <section id="submission-workspace" class="detail-section submission-workspace" hidden>
+    <h3>Write and execute your solution</h3>
+    <label class="editor-label" for="submission-language">Programming language</label>
+    <select id="submission-language" aria-label="Programming language"></select>
+    <p id="language-help" class="muted"></p>
+    <label class="editor-label" for="source-code">Your code</label>
+    <textarea id="source-code" rows="14" maxlength="50000" spellcheck="false" autocomplete="off" placeholder="Write your solution here…"></textarea>
+    <div class="submission-actions">
+      <button id="run-samples" type="button" class="secondary">Run samples</button>
+      <button id="submit-code" type="button">Submit solution</button>
+    </div>
+    <p id="submission-status" class="notice" role="status" aria-live="polite"></p>
+    <section id="submission-record" class="submission-record" hidden>
+      <h4 id="submission-record-heading"></h4>
+      <p id="submission-record-verdict" class="verdict-text"></p>
+      <p id="submission-record-metrics" class="muted"></p>
+      <p id="submission-record-error" class="error"></p>
+      <div id="submission-record-tests" class="test-result-list"></div>
+      <details class="code-details">
+        <summary>View submitted code</summary>
+        <pre id="submission-record-code"></pre>
+      </details>
+    </section>
+    <div class="history-section">
+      <h4>Your history for this problem</h4>
+      <div id="problem-submissions"></div>
+    </div>
+  </section>
 </dialog>
 </body>
 </html>
