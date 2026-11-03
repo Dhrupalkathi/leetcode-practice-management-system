@@ -233,6 +233,14 @@ app.use((error,req,res,next)=>{
 });
 async function start(){
   try{
+    // Discard partial test outcomes before retrying an interrupted ordinary submission.
+    await pool.query(
+      `DELETE FROM public.submission_test_result
+       WHERE submission_id IN (
+         SELECT submission_id FROM public.submission
+         WHERE execution_status='RUNNING' AND candidate_id IS NULL
+       )`
+    );
     // A process restart can safely re-queue ordinary learner/contest jobs.
     await pool.query(
       `UPDATE public.submission
