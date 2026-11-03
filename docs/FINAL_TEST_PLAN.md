@@ -295,7 +295,13 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **What:** Verify that a queued ordinary submission survives an application restart and resumes without duplicate per-test records.
 - **Why:** The SRS requires reliable submission history and service continuity; an in-memory callback alone cannot recover pending jobs.
 - **How:** Queue multiple harmless learner/contest submissions, restart the application while one is pending or running, then inspect the saved submission and test-result rows.
-- **Expected:** Interrupted learner, contest and candidate-assessment jobs return to PENDING, partial test-result rows from the interrupted run are cleared, workers claim jobs from PostgreSQL, and the final record reaches COMPLETED or FAILED without duplicate-key errors. Candidate assessment completion remains blocked while any candidate submission is PENDING or RUNNING.
+- **Expected:** Jobs whose worker lease expires return to PENDING, partial test-result rows from the interrupted run are cleared, workers claim jobs from PostgreSQL, and the final record reaches COMPLETED or FAILED without duplicate-key errors. A live worker renews its lease before each bounded Judge0 test execution. Candidate assessment completion remains blocked while any candidate submission is PENDING or RUNNING.
+
+### D-17 — Missing test cases at worker execution time
+- **What:** Remove or disassociate the test cases after a valid submission is queued but before a worker begins execution, using an isolated test database.
+- **Why:** A race or administrative change must never cause an empty test set to be recorded as an Accepted solution.
+- **How:** Queue a harmless submission, remove its test cases before the worker claims it, and inspect the final submission state and test-result rows.
+- **Expected:** The submission is marked FAILED with a safe explanatory message; it is never marked Accepted and no fabricated successful test result is inserted.
 
 ### D-16 — Concurrent worker claiming
 - **What:** Verify that multiple configured workers do not claim the same pending submission.
