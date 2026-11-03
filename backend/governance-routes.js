@@ -1,4 +1,5 @@
 const express = require('express');
+const { notifyUser } = require('./notification-service');
 
 function positiveId(value) {
   const id = Number(value);
@@ -79,7 +80,7 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
     const client=await pool.connect();
     try {
       await client.query('BEGIN');
-      const problem=await client.query('SELECT problem_id,review_status FROM public.problem WHERE problem_id=$1 FOR UPDATE',[id]);
+      const problem=await client.query('SELECT problem_id,created_by,review_status,title FROM public.problem WHERE problem_id=$1 FOR UPDATE',[id]);
       if(!problem.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'Problem not found.'});}
       if(!['PENDING_REVIEW','CHANGES_REQUESTED'].includes(problem.rows[0].review_status)){
         await client.query('ROLLBACK');return res.status(409).json({error:'Only problems awaiting review can receive a new decision.'});
@@ -101,6 +102,7 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
         [req.user.user_id,String(id),JSON.stringify({decision,review_id:review.rows[0].review_id})]
       );
       await client.query('COMMIT');
+      await notifyUser(pool,problem.rows[0].created_by,{notification_type:'PROBLEM_REVIEW_RESULT',title:'Problem review decision',message:'Problem #'+id+' · '+problem.rows[0].title+' was '+decision.toLowerCase().replaceAll('_',' ')+'.',entity_type:'problem',entity_id:id});
       res.json({problem:updated.rows[0],review:review.rows[0]});
     } catch(error){
       await client.query('ROLLBACK');next(error);
@@ -286,11 +288,12 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
            updated_at=CURRENT_TIMESTAMP,
            resolved_at=CASE WHEN COALESCE(NULLIF($1,''),status) IN ('RESOLVED','CLOSED') THEN CURRENT_TIMESTAMP ELSE NULL END
          WHERE ticket_id=$5
-         RETURNING ticket_id,subject,priority,status,assigned_support_id,updated_at,resolved_at`,
+         RETURNING ticket_id,requester_id,subject,priority,status,assigned_support_id,updated_at,resolved_at`,
         [status,priority,assigned,req.body.assigned_support_id!==undefined,id]
       );
       if(!result.rowCount) return res.status(404).json({error:'Support ticket not found.'});
       await audit(req.user.user_id,'SUPPORT_TICKET_UPDATED','support_ticket',id,{status:status||null,priority,assigned_support_id:assigned});
+      if(result.rows[0].requester_id) await notifyUser(pool,result.rows[0].requester_id,{notification_type:'SUPPORT_TICKET',title:'Support ticket updated',message:'Your support ticket #'+id+' is now '+result.rows[0].status+'.',entity_type:'support_ticket',entity_id:id});
       res.json({ticket:result.rows[0]});
     } catch(error){next(error);}
   });
@@ -324,6 +327,7 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
         [req.user.user_id,learnerId,problemId,submissionId,feedback]
       );
       await audit(req.user.user_id,'MENTOR_FEEDBACK_CREATED','mentor_feedback',result.rows[0].feedback_id,{learner_id:learnerId,problem_id:problemId,submission_id:submissionId});
+      await notifyUser(pool,learnerId,{notification_type:'MENTOR_FEEDBACK',title:'New mentor feedback',message:'A Mentor added feedback for you'+(problemId?' on problem #'+problemId:'')+'.',entity_type:'mentor_feedback',entity_id:result.rows[0].feedback_id});
       res.status(201).json({feedback:result.rows[0]});
     } catch(error){next(error);}
   });
