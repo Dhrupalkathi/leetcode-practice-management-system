@@ -309,7 +309,9 @@ function render() {
       : problem.review_status === 'RETIRED' ? 'Retired' : 'Inactive';
     addTopicChips(row.querySelector('.problem-topics'), problem.topics);
 
-    const canManage = currentUser?.role_category === 'Organizer';
+    const canManage = currentUser?.role_category === 'Admin' ||
+      (currentUser?.role_category === 'Organizer' &&
+       Number(currentUser.organizer_id) === Number(problem.created_by));
     row.querySelector('.edit-button').hidden = !canManage;
     row.querySelector('.retire-button').hidden = !canManage || !problem.is_active;
 
@@ -1426,6 +1428,7 @@ $('#problem-form').addEventListener('submit', async (event) => {
     });
     $('#form-panel').hidden = true;
     notify(result.message || (id ? 'Changes submitted for Reviewer approval.' : 'Problem submitted for Reviewer approval.'), 'success');
+    if (result.problem?.review_status === 'PENDING_REVIEW') $('#show-inactive').checked = true;
     await loadProblems();
   } catch (error) {
     $('#form-error').textContent = error.message;
