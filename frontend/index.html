@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Database connectivity setup for the LeetCode-style practice platform">
+  <title>Practice Platform | Setup Check</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">LC</div>
+      <div>
+        <p class="eyebrow">TEAM 24 · MC212 DBMS</p>
+        <h1>Practice Platform</h1>
+      </div>
+      <span class="phase-tag">Phase 1 · Setup</span>
+    </header>
+
+    <section class="intro-card">
+      <p class="eyebrow">DATABASE CONNECTIVITY</p>
+      <h2>Connect the application to PostgreSQL</h2>
+      <p class="intro-copy">This first step verifies the path from the browser to the Express backend and from the backend to the existing <code>leetcode</code> database.</p>
+      <div class="actions">
+        <button id="check-button" type="button">Test database connection</button>
+        <span id="status" class="status" role="status" aria-live="polite">Not checked yet</span>
+      </div>
+    </section>
+
+    <section class="details-grid" aria-label="Application layers">
+      <article class="detail-card"><span class="number">01</span><h3>Frontend</h3><p>HTML and browser JavaScript send a request using <code>fetch()</code>.</p></article>
+      <article class="detail-card"><span class="number">02</span><h3>Backend</h3><p>Express receives the request and uses the server-side PostgreSQL driver.</p></article>
+      <article class="detail-card"><span class="number">03</span><h3>Database</h3><p>PostgreSQL answers the test query. The browser never connects to the database directly.</p></article>
+    </section>
+
+    <section class="result-card">
+      <h3>Connection result</h3>
+      <pre id="result" class="result-output">Waiting for the connection test…</pre>
+    </section>
+
+    <footer>Local development only · No CRUD routes or code execution are enabled in this phase.</footer>
+  </main>
+</body>
+</html>
