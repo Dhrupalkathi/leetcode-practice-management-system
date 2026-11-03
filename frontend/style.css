@@ -50,3 +50,6 @@
 .history-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #293954;color:#c2d0e4;font-size:11px}
 .history-row button{padding:7px 10px;font-size:10px}
 @media(max-width:700px){.history-row{align-items:flex-start;flex-direction:column}.submission-actions button{flex:1}}
+
+.contest-time-penalty-toggle{display:flex!important;align-items:center;gap:10px}
+.contest-time-penalty-toggle input{width:auto!important;accent-color:#a7f3d0}
