@@ -23,6 +23,32 @@ function metricMilliseconds(value) {
   return Number.isFinite(number) && number > 0 ? Math.round(number * 1000) : 0;
 }
 
+async function recalculateContestRegistration(pool, contestId, userId) {
+  if (!contestId || !userId) return;
+  await pool.query(
+    `WITH first_accept AS (
+       SELECT problem_id, MIN(submitted_at) AS accepted_at
+       FROM public.submission
+       WHERE contest_id=$1 AND user_id=$2 AND is_run_only=FALSE
+         AND execution_status='COMPLETED' AND verdict_id=1
+       GROUP BY problem_id
+     ), score AS (
+       SELECT COUNT(*)::integer * 100 AS points FROM first_accept
+     ), penalty AS (
+       SELECT COUNT(*)::integer * 5 AS penalty_points
+       FROM public.submission s
+       JOIN first_accept fa ON fa.problem_id=s.problem_id
+       WHERE s.contest_id=$1 AND s.user_id=$2 AND s.is_run_only=FALSE
+         AND s.execution_status='COMPLETED' AND s.verdict_id<>1
+         AND s.submitted_at < fa.accepted_at
+     )
+     UPDATE public.contest_registration cr
+     SET score=score.points, penalty=penalty.penalty_points
+     FROM score, penalty
+     WHERE cr.contest_id=$1 AND cr.learner_id=$2`,
+    [contestId,userId]
+  );
+}
 async function processSubmission(pool, submission, testCases, language) {
   let totalTime = 0;
   let maximumMemory = 0;
@@ -75,6 +101,7 @@ async function processSubmission(pool, submission, testCases, language) {
        WHERE submission_id=$4`,
       [finalVerdictId, totalTime, maximumMemory, submission.submission_id]
     );
+    await recalculateContestRegistration(pool, submission.contest_id, submission.user_id);
   } catch (error) {
     console.error('Submission execution failed:', error.message);
     await pool.query(
@@ -116,6 +143,10 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
     const languageId = Number(req.body.language_id);
     const sourceCode = typeof req.body.code === 'string' ? req.body.code : '';
     const action = req.body.action === 'run' ? 'run' : 'submit';
+    const contestId = req.body.contest_id == null ? null : Number(req.body.contest_id);
+    if (contestId !== null && (!Number.isSafeInteger(contestId) || contestId <= 0)) {
+      return res.status(400).json({ error: 'Invalid contest ID.' });
+    }
 
     if (!Number.isSafeInteger(problemId) || problemId <= 0) {
       return res.status(400).json({ error: 'Select a valid problem.' });
@@ -143,7 +174,24 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
         'SELECT problem_id FROM public.problem WHERE problem_id=$1 AND is_active=TRUE',
         [problemId]
       );
+
       if (!problemResult.rowCount) return res.status(404).json({ error: 'Active problem not found.' });
+
+      if (contestId !== null) {
+        const eligibility = await pool.query(
+          `SELECT 1
+           FROM public.contest c
+           JOIN public.contest_registration cr ON cr.contest_id=c.contest_id
+           JOIN public.includes i ON i.contest_id=c.contest_id AND i.problem_id=$3
+           WHERE c.contest_id=$1 AND cr.learner_id=$2
+             AND c.start_time <= CURRENT_TIMESTAMP
+             AND c.end_time > CURRENT_TIMESTAMP`,
+          [contestId,req.user.user_id,problemId]
+        );
+        if (!eligibility.rowCount) {
+          return res.status(403).json({ error: 'You must be registered and the contest must be live to submit to its problems.' });
+        }
+      }
 
       const testResult = await pool.query(
         `SELECT test_case_id, input_data, expected_output
@@ -172,10 +220,10 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
         const inserted = await client.query(
           `INSERT INTO public.submission
             (code, verdict_id, time_taken_ms, memory_used_kb, attempt_number,
-             user_id, problem_id, language_id, assessment_id, execution_status, is_run_only)
-           VALUES ($1,NULL,0,0,$2,$3,$4,$5,NULL,'PENDING',$6)
+             user_id, problem_id, language_id, assessment_id, contest_id, execution_status, is_run_only)
+           VALUES ($1,NULL,0,0,$2,$3,$4,$5,NULL,$6,'PENDING',$7)
            RETURNING submission_id, attempt_number, submitted_at`,
-          [sourceCode, attemptResult.rows[0].next_attempt, req.user.user_id, problemId, languageId, action === 'run']
+          [sourceCode, attemptResult.rows[0].next_attempt, req.user.user_id, problemId, languageId, contestId, action === 'run']
         );
         submission = inserted.rows[0];
         await client.query('COMMIT');
@@ -189,7 +237,9 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
       setImmediate(() => {
         processSubmission(pool, {
           submission_id: submission.submission_id,
-          code: sourceCode
+          code: sourceCode,
+          contest_id: contestId,
+          user_id: req.user.user_id
         }, testResult.rows, language).catch(async (workerError) => {
           console.error('Unexpected submission worker failure:', workerError.message);
           try {
@@ -211,7 +261,8 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
         attempt_number: submission.attempt_number,
         submitted_at: submission.submitted_at,
         execution_status: 'PENDING',
-        is_run_only: action === 'run'
+        is_run_only: action === 'run',
+        contest_id: contestId
       });
     } catch (error) {
       next(error);
@@ -225,7 +276,7 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
     }
     try {
       const result = await pool.query(
-        `SELECT s.submission_id, s.problem_id, p.title AS problem_title,
+        `SELECT s.submission_id, s.problem_id, s.contest_id, p.title AS problem_title,
                 s.attempt_number, s.submitted_at, s.time_taken_ms, s.memory_used_kb,
                 s.execution_status, s.execution_error, s.is_run_only,
                 v.verdict_name, v.result AS verdict_result,
@@ -252,7 +303,7 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
     }
     try {
       const result = await pool.query(
-        `SELECT s.submission_id, s.code, s.problem_id, p.title AS problem_title,
+        `SELECT s.submission_id, s.code, s.problem_id, s.contest_id, p.title AS problem_title,
                 s.attempt_number, s.submitted_at, s.time_taken_ms, s.memory_used_kb,
                 s.execution_status, s.execution_error, s.is_run_only,
                 v.verdict_name, v.result AS verdict_result,
