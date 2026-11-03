@@ -9,7 +9,7 @@ A LeetCode-style programming practice and technical-assessment platform backed b
 - **Accounts and roles:** seeded-user login, automatic legacy SHA-256-to-Argon2id migration, self-service Learner L1 registration, profile/email updates, Learner preferred-language settings, Argon2id password changes with other-session invalidation, PostgreSQL-backed sessions, and Admin account/role controls.
 - **Problem library:** title search, difficulty/topic filtering, problem detail pages, public sample cases, and hidden-test confidentiality.
 - **Problem lifecycle:** Organizer create/edit/retire with topic tagging, public sample and hidden test-case authoring, immutable test data after submissions exist, Reviewer inspection/approval, changes-requested and rejection decisions, publication status and review history. Admins can also create problems by assigning an active Organizer owner.
-- **Code editor and judge:** supported-language selector, Run samples, Submit solution, asynchronous Judge0 execution, verdicts, per-test outcomes, runtime/memory metrics and personal submission history.
+- **Code editor and judge:** supported-language selector, Run samples, Submit solution, PostgreSQL-backed asynchronous job queue with concurrent row-locked workers, restart recovery, Judge0 execution, verdicts, per-test outcomes, runtime/memory metrics and personal submission history.
 - **Learner progress:** solved/attempted counts, acceptance rate, streak, daily activity, topic performance, language usage and recent practice.
 - **Contests:** schedule, Organizer/Admin setup, Moderator problem-set management, Learner registration, contest-linked submissions, configurable score/penalty and leaderboard, plus Judge result reviews.
 - **Company assessments:** organization-scoped setup, invitations, time window and personal timer, candidate-only workspace/history, aggregate post-assessment reports and human-review activity indicators.
@@ -53,7 +53,7 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f datab
 
 - Migration 001 adds `problem_statement` and identity generation for new problem IDs beginning at 81.
 - Migration 002 widens the password hash field and creates the PostgreSQL session table.
-- Migration 003 adds asynchronous execution state, exact Judge0 language mappings, submission ID generation and per-test outcomes.
+- Migration 003 adds asynchronous execution state, exact Judge0 language mappings, submission ID generation and per-test outcomes. PostgreSQL stores pending jobs; worker processes claim jobs with `FOR UPDATE SKIP LOCKED` and can recover interrupted ordinary submissions after a server restart.
 - Migration 004 links future submissions to contests, adds contest creator attribution and configurable scoring fields.
 - Migration 005 adds organization ownership for assessments, invitation token hashes/expiry and candidate-linked submissions.
 - Migration 006 adds identity generation for future user IDs without changing seeded users.
