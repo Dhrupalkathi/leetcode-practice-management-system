@@ -87,14 +87,18 @@ module.exports = function createProfileRouter({ pool, authRequired }) {
         }
       }
       await client.query('COMMIT');
-      res.json({
-        profile: {
-          ...updated.rows[0],
-          role_name: req.user.role_name,
-          preferred_language_id: hasPreferred ? preferredId : req.body.preferred_language_id
-        },
-        message: 'Profile updated successfully.'
-      });
+      const profile = await pool.query(
+        `SELECT u.user_id,u.name,u.email,u.joined_at,r.role_name,
+                l.preferred_language_id,lang.name AS preferred_language_name,
+                lang.version AS preferred_language_version
+         FROM public.users u
+         JOIN public.role r ON r.role_id=u.role_id
+         LEFT JOIN public.learner l ON l.learner_id=u.user_id
+         LEFT JOIN public.language lang ON lang.language_id=l.preferred_language_id
+         WHERE u.user_id=$1`,
+        [req.user.user_id]
+      );
+      res.json({ profile:profile.rows[0], message:'Profile updated successfully.' });
     } catch (error) {
       await client.query('ROLLBACK');
       if (error.code === '23505') return res.status(409).json({ error: 'That email address is already in use.' });
