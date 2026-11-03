@@ -97,3 +97,24 @@
   .admin-user-controls button{grid-column:1/-1}
   .inline-action-row{flex-direction:column}
 }
+
+
+/* Organizer problem authoring: topic taxonomy and test cases */
+.editor-fieldset{min-width:0;margin:8px 0 0;padding:16px;border:1px solid #31435f;border-radius:12px;background:#0c172a}
+.editor-fieldset legend{padding:0 7px;color:#dce8fa;font-size:13px;font-weight:800}
+.problem-topic-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.topic-option{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid #2f435f;border-radius:8px;background:#101f36;color:#c5d4e8;font-size:12px;cursor:pointer}
+.topic-option input{width:auto;accent-color:#a7f3d0}
+.problem-test-case-list{display:grid;gap:12px;margin:12px 0}
+.problem-test-case{min-width:0;padding:13px;border:1px solid #2c405d;border-radius:11px;background:#101b30}
+.problem-test-case-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.problem-test-case-header strong{font-size:12px;color:#e3edf9}
+.problem-test-case-header button{padding:7px 10px;font-size:10px}
+.problem-test-case-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.problem-test-case-fields label{display:grid;gap:6px;color:#aebed5;font-size:11px}
+.problem-test-case-fields textarea{width:100%;min-height:95px;border:1px solid #354765;border-radius:8px;background:#080f1e;color:#d9f4e8;padding:10px;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}
+.test-case-visibility{margin-top:10px;font-size:11px}
+.test-case-visibility input{width:auto;accent-color:#a7f3d0}
+.add-test-case{margin-top:4px}
+.locked-note{padding:10px 12px;border-left:3px solid #d6a85b;border-radius:6px;background:#322916;color:#f6d89c;font-size:12px;line-height:1.5}
+@media(max-width:700px){.problem-test-case-fields{grid-template-columns:1fr}.problem-topic-options{grid-template-columns:1fr 1fr}}
