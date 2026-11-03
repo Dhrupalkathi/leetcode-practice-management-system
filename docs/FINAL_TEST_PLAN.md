@@ -927,6 +927,13 @@ Run these stages in order. Record test date, account and role, steps performed, 
 
 - **Expected:** The application stays responsive within agreed project demonstration limits and does not lose or corrupt records.
 
+### H-09 — Admin assigns an Organizer with an organization selector
+
+- **What:** Assign an existing account to an Organizer role and associate it with a real organization.
+- **Why:** Organizer permissions and assessment ownership depend on a valid organization relationship; administrators should not have to guess numeric organization IDs.
+- **How:** Sign in as Admin, open User and role management, change a non-Organizer account to an Organizer role, select an organization from the organization-name dropdown, and save. Reload the account list and inspect the Organizer profile relationship.
+- **Expected:** The organization dropdown appears only when a new Organizer profile is required; saving without a selection is blocked; a valid selection creates the Organizer profile with the chosen organization; existing Organizer organization assignments remain unchanged unless separately supported.
+
 ## Test result log
 
 | Test ID | Date | Account / role | Actual result | Pass/Fail | Issue / evidence |
