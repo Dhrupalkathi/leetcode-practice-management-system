@@ -296,6 +296,16 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
     const invite=req.candidateInvite;
     if(invite.status==='Completed') return res.json({ status:'Completed',score:invite.score });
     if(invite.status!=='Started') return res.status(409).json({ error:'This assessment has not been started.' });
+    const pending = await pool.query(
+      `SELECT COUNT(*)::integer AS count
+       FROM public.submission
+       WHERE assessment_id=$1 AND candidate_id=$2
+         AND execution_status IN ('PENDING','RUNNING')`,
+      [invite.assessment_id,invite.candidate_id]
+    );
+    if (pending.rows[0].count > 0) {
+      return res.status(409).json({ error:'Wait for all running submissions to finish before submitting the assessment.' });
+    }
     try {
       const completed=await finishInvite(invite.assessment_id,invite.candidate_id);
       if(!completed) return res.status(409).json({ error:'This assessment could not be completed.' });
