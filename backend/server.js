@@ -12,6 +12,7 @@ const { pool } = require('./db');
 const createProblemDiscoveryRouter = require('./problem-discovery');
 const createSubmissionRouter = require('./submission-routes');
 const createProgressRouter = require('./progress-routes');
+const createContestRouter = require('./contest-routes');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -169,6 +170,7 @@ app.post('/api/auth/logout', (req, res) => {
 app.use('/api', createProblemDiscoveryRouter({ pool, authRequired }));
 app.use('/api', createSubmissionRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createProgressRouter({ pool, authRequired, allowRoles }));
+app.use('/api', createContestRouter({ pool, authRequired, allowRoles }));
 
 app.get('/api/problems', async (req, res, next) => {
   try {
