@@ -7,7 +7,8 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 ## Implemented
 
 - PostgreSQL connectivity through Express.
-- Problem listing, search/filter, create, update and safe retirement.
+- Problem listing, title search, difficulty and topic filtering, full problem details, topic labels and public sample-test display.
+- Problem create, update and safe retirement.
 - Parameterized SQL queries and server-side input validation.
 - Login/logout using the existing USERS and ROLE tables.
 - PostgreSQL-backed sessions with HttpOnly, SameSite cookies.
@@ -48,7 +49,9 @@ On a successful legacy login, the server verifies SHA-256 and immediately replac
 
 ## API
 
-- `GET /api/problems` — list active problems.
+- `GET /api/topics` — list available problem topics.
+- `GET /api/problems` — list active problems with assigned topic metadata.
+- `GET /api/problems/:id` — full problem details, topics and public sample tests (hidden test cases are excluded).
 - `GET /api/problems?includeInactive=true` — include retired problems for signed-in users.
 - `GET /api/problems/:id` — get one active problem (retired records require a session).
 - `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
