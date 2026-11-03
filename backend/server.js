@@ -117,6 +117,58 @@ app.get('/api/health/db', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, limit: 5,
+  standardHeaders: 'draft-8', legacyHeaders: false,
+  message: { error: 'Too many account creation attempts. Try again later.' }
+});
+
+app.post('/api/auth/register', registrationLimiter, async (req, res, next) => {
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  if (!name || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) {
+    return res.status(400).json({ error: 'Enter a valid name and email address.' });
+  }
+  if (password.length < 10 || password.length > 1024) {
+    return res.status(400).json({ error: 'Password must be between 10 and 1024 characters.' });
+  }
+  try {
+    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+    const client = await pool.connect();
+    let user;
+    try {
+      await client.query('BEGIN');
+      const role = await client.query(
+        `SELECT role_id,role_name FROM public.role WHERE role_name='Learner L1'`
+      );
+      if (!role.rowCount) throw new Error('The default Learner role is not configured.');
+      const inserted = await client.query(
+        `INSERT INTO public.users (name,email,password_hash,is_active,role_id)
+         VALUES ($1,$2,$3,TRUE,$4)
+         RETURNING user_id,name,email,role_id`,
+        [name,email,passwordHash,role.rows[0].role_id]
+      );
+      user = inserted.rows[0];
+      await client.query(
+        'INSERT INTO public.learner (learner_id,current_streak,solved_count) VALUES ($1,0,0)',
+        [user.user_id]
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      if (error.code === '23505') return res.status(409).json({ error: 'An account with this email already exists.' });
+      throw error;
+    } finally { client.release(); }
+    await new Promise((resolve,reject)=>req.session.regenerate(error=>error?reject(error):resolve()));
+    req.session.userId=user.user_id;
+    res.status(201).json({
+      user: { user_id:user.user_id,name:user.name,email:user.email,role_id:user.role_id,
+        role_name:'Learner L1',role_category:'Learner',organizer_id:null },
+      message:'Your Learner account has been created.'
+    });
+  } catch (error) { next(error); }
+});
 app.post('/api/auth/login', loginLimiter, async (req, res, next) => {
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const password = typeof req.body.password === 'string' ? req.body.password : '';
