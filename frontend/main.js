@@ -196,9 +196,12 @@ async function openContestForm(contestId = null) {
 function renderContestProblems(rows, contest) {
   const container = $('#contest-detail-problems'); container.replaceChildren();
   const canSolve = contest.contest_status === 'LIVE' && contest.is_registered;
-  if (contest.contest_status === 'UPCOMING' && !contest.is_organizer) {
+  if ((contest.contest_status === 'UPCOMING' && !contest.is_organizer) ||
+      (contest.contest_status === 'LIVE' && !contest.is_organizer && !contest.is_registered)) {
     const message = document.createElement('p'); message.className = 'muted';
-    message.textContent = 'Contest problems become accessible when the contest starts.'; container.append(message); return;
+    message.textContent = contest.contest_status === 'UPCOMING'
+      ? 'Contest problems become accessible when the contest starts.'
+      : 'Only registered participants can view live contest problems.'; container.append(message); return;
   }
   for (const problem of rows) {
     const row = document.createElement('div'); row.className = 'contest-problem-row';
