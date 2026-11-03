@@ -190,7 +190,20 @@ module.exports = function createSubmissionRouter({ pool, authRequired, allowRole
         processSubmission(pool, {
           submission_id: submission.submission_id,
           code: sourceCode
-        }, testResult.rows, language);
+        }, testResult.rows, language).catch(async (workerError) => {
+          console.error('Unexpected submission worker failure:', workerError.message);
+          try {
+            await pool.query(
+              `UPDATE public.submission
+               SET execution_status='FAILED',
+                   execution_error='The execution service could not complete this request. Please retry.'
+               WHERE submission_id=$1`,
+              [submission.submission_id]
+            );
+          } catch (databaseError) {
+            console.error('Could not persist submission worker failure:', databaseError.message);
+          }
+        });
       });
 
       res.status(202).json({
