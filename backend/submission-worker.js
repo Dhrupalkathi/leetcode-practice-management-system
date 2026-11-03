@@ -14,7 +14,6 @@ async function claimNextSubmission(pool) {
               s.assessment_id,s.candidate_id,s.contest_id,s.user_id
        FROM public.submission s
        WHERE s.execution_status='PENDING'
-         AND s.candidate_id IS NULL
        ORDER BY s.submitted_at,s.submission_id
        LIMIT 1
        FOR UPDATE OF s SKIP LOCKED`
@@ -30,12 +29,16 @@ async function claimNextSubmission(pool) {
       [submission.submission_id]
     );
     const tests = await client.query(
-      `SELECT test_case_id,input_data,expected_output
-       FROM public.test_case
-       WHERE problem_id=$1
-         AND ($2::boolean=FALSE OR is_hidden=FALSE)
-       ORDER BY test_case_id`,
-      [submission.problem_id,submission.is_run_only]
+      `SELECT tc.test_case_id,tc.input_data,tc.expected_output
+       FROM public.test_case tc
+       WHERE tc.problem_id=$1
+         AND ($2::boolean=FALSE OR tc.is_hidden=FALSE)
+         AND ($3::integer IS NULL OR EXISTS (
+           SELECT 1 FROM public.assessment_problem ap
+           WHERE ap.assessment_id=$3 AND ap.problem_id=tc.problem_id
+         ))
+       ORDER BY tc.test_case_id`,
+      [submission.problem_id,submission.is_run_only,submission.assessment_id]
     );
     await client.query('COMMIT');
     return { submission, testCases:tests.rows };
