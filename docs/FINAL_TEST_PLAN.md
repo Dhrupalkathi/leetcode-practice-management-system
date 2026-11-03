@@ -79,6 +79,24 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **How:** Submit repeated incorrect passwords until the configured limit is exceeded.
 - **Expected:** Further attempts are rate-limited and account existence is not disclosed.
 
+### B-07 — Self-service Learner registration
+- **What:** Create a new platform account through the public registration form.
+- **Why:** The SRS requires account registration; Guests should be able to become registered Learners.
+- **How:** Submit a new name, unique email, and password meeting the minimum length from the home page.
+- **Expected:** A users row is created with the existing Learner L1 role, a learner subtype row is created, the password is stored as Argon2id, and the browser receives a signed-in session.
+
+### B-08 — Duplicate and invalid registration
+- **What:** Attempt registration with an already-used email, malformed email, missing name, and short password.
+- **Why:** Protect unique account identity and keep invalid or weak credentials out of the database.
+- **How:** Submit the invalid combinations through the registration form and direct API requests.
+- **Expected:** Invalid data receives a clear client error; duplicate email receives a conflict response; no duplicate or partial user/learner records are written.
+
+### B-09 — Public registration cannot escalate privileges
+- **What:** Attempt to submit a different role_id or role_name during public account creation.
+- **Why:** Public users must not be able to create Organizer, Reviewer, Admin, or other privileged accounts.
+- **How:** Send role fields in a direct registration API request and inspect the created user's role.
+- **Expected:** The API ignores/rejects caller-supplied role fields and assigns Learner L1 only.
+
 ## C. Problem management and discovery
 
 ### C-01 — Public problem listing
