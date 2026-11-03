@@ -6,6 +6,10 @@ let topics = [];
 let currentUser = null;
 let currentProblemId = null;
 let availableLanguages = null;
+let contests = [];
+let activeContest = null;
+let currentContestId = null;
+let currentContestStatus = null;
 
 function notify(message, type = '') {
   const node = $('#notice');
@@ -40,6 +44,7 @@ function updateAccountUI() {
     : 'Not signed in';
   $('#new-button').hidden = !(signedIn && currentUser.role_category === 'Organizer');
   $('#progress-panel').hidden = !(signedIn && currentUser.role_category === 'Learner');
+  $('#create-contest-button').hidden = !(signedIn && currentUser.role_category === 'Organizer');
   $('#show-inactive').disabled = !signedIn;
 }
 
@@ -122,6 +127,138 @@ function render() {
   }
 }
 
+function contestDate(value) {
+  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function renderContests() {
+  const container = $('#contest-list');
+  container.replaceChildren();
+  if (!contests.length) {
+    const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No contests are scheduled yet.'; container.append(empty); return;
+  }
+  for (const contest of contests) {
+    const card = document.createElement('article'); card.className = 'contest-card';
+    const main = document.createElement('div'); main.className = 'contest-card-main';
+    const heading = document.createElement('div'); heading.className = 'contest-card-heading';
+    const title = document.createElement('h3'); title.textContent = contest.name;
+    const status = document.createElement('span'); status.className = 'contest-status ' + contest.contest_status.toLowerCase(); status.textContent = contest.contest_status;
+    heading.append(title, status);
+    const dates = document.createElement('p'); dates.textContent = contestDate(contest.start_time) + ' — ' + contestDate(contest.end_time);
+    const meta = document.createElement('p'); meta.className = 'muted'; meta.textContent = contest.problem_count + ' problems · ' + contest.participant_count + ' participants · Organized by ' + contest.organizer_name;
+    main.append(heading, dates, meta);
+    const actions = document.createElement('div'); actions.className = 'contest-card-actions';
+    if (contest.is_registered) { const reg = document.createElement('span'); reg.className = 'registered-label'; reg.textContent = 'Registered'; actions.append(reg); }
+    const view = document.createElement('button'); view.type = 'button'; view.textContent = 'View contest';
+    view.addEventListener('click', () => openContestDetails(contest.contest_id)); actions.append(view);
+    const canEdit = currentUser?.role_category === 'Organizer' && Number(contest.organizer_id) === Number(currentUser.user_id) && contest.contest_status === 'UPCOMING';
+    if (canEdit) { const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Edit'; edit.addEventListener('click', () => openContestForm(contest.contest_id)); actions.append(edit); }
+    card.append(main, actions); container.append(card);
+  }
+}
+
+async function loadContests() {
+  const container = $('#contest-list');
+  try { const payload = await api('/api/contests'); contests = payload.contests || []; renderContests(); }
+  catch (error) { container.textContent = error.message; }
+}
+
+function populateContestProblemOptions(selected = []) {
+  const select = $('#contest-problem-ids'); select.replaceChildren();
+  for (const problem of problems.filter((item) => item.is_active)) {
+    const option = document.createElement('option'); option.value = problem.problem_id;
+    option.textContent = '#' + problem.problem_id + ' · ' + problem.title + ' (' + problem.difficulty + ')';
+    option.selected = selected.includes(Number(problem.problem_id)); select.append(option);
+  }
+}
+
+function toDateTimeLocal(value) {
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+async function openContestForm(contestId = null) {
+  $('#contest-form').reset(); $('#contest-form-error').textContent = ''; $('#contest-id').value = contestId || '';
+  $('#contest-form-title').textContent = contestId ? 'Edit upcoming contest' : 'Create a contest';
+  populateContestProblemOptions();
+  if (contestId) {
+    try {
+      const payload = await api('/api/contests/' + contestId); const c = payload.contest;
+      $('#contest-name').value = c.name; $('#contest-start').value = toDateTimeLocal(c.start_time);
+      $('#contest-end').value = toDateTimeLocal(c.end_time); $('#contest-rules').value = c.rules || '';
+      populateContestProblemOptions(payload.problems.map((p) => Number(p.problem_id)));
+    } catch (error) { $('#contest-form-error').textContent = error.message; return; }
+  }
+  $('#contest-editor').hidden = false; $('#contest-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderContestProblems(rows, contest) {
+  const container = $('#contest-detail-problems'); container.replaceChildren();
+  const canSolve = contest.contest_status === 'LIVE' && contest.is_registered;
+  if (contest.contest_status === 'UPCOMING' && !contest.is_organizer) {
+    const message = document.createElement('p'); message.className = 'muted';
+    message.textContent = 'Contest problems become accessible when the contest starts.'; container.append(message); return;
+  }
+  for (const problem of rows) {
+    const row = document.createElement('div'); row.className = 'contest-problem-row';
+    const info = document.createElement('div'); const title = document.createElement('strong');
+    title.textContent = '#' + problem.problem_id + ' · ' + problem.title;
+    const difficulty = document.createElement('span'); difficulty.className = 'difficulty';
+    difficulty.dataset.level = problem.difficulty.toLowerCase(); difficulty.textContent = problem.difficulty;
+    info.append(title, difficulty);
+    const button = document.createElement('button'); button.type = 'button';
+    button.textContent = canSolve ? 'Solve in contest' : 'Open problem'; button.className = canSolve ? '' : 'secondary';
+    button.addEventListener('click', async () => {
+      $('#contest-dialog').close();
+      await openProblemDetails(problem.problem_id, canSolve ? contest.contest_id : null, canSolve ? 'LIVE' : null);
+    });
+    row.append(info, button); container.append(row);
+  }
+}
+
+function renderContestLeaderboard(rows) {
+  const container = $('#contest-leaderboard'); container.replaceChildren();
+  if (!rows.length) { const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'No participants are registered yet.'; container.append(empty); return; }
+  const table = document.createElement('table'); table.className = 'leaderboard-table';
+  const head = document.createElement('thead'); const headerRow = document.createElement('tr');
+  for (const label of ['Rank', 'Learner', 'Score', 'Penalty']) { const th = document.createElement('th'); th.textContent = label; headerRow.append(th); }
+  head.append(headerRow); const body = document.createElement('tbody');
+  for (const entry of rows) { const row = document.createElement('tr'); for (const value of [entry.rank, entry.learner_name, entry.score, entry.penalty]) { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); } body.append(row); }
+  table.append(head, body); container.append(table);
+}
+
+async function openContestDetails(contestId) {
+  try {
+    const results = await Promise.all([api('/api/contests/' + contestId), api('/api/contests/' + contestId + '/leaderboard')]);
+    const detail = results[0]; const board = results[1]; activeContest = detail.contest;
+    const c = activeContest;
+    c.is_organizer = currentUser?.role_category === 'Organizer' && Number(c.organizer_id) === Number(currentUser.user_id);
+    $('#contest-detail-title').textContent = c.name; $('#contest-detail-status').textContent = c.contest_status;
+    $('#contest-detail-meta').textContent = contestDate(c.start_time) + ' — ' + contestDate(c.end_time) + ' · ' + c.participant_count + ' participants';
+    $('#contest-detail-rules').textContent = c.rules || 'No additional rules were provided.';
+    const register = $('#contest-register-button');
+    register.hidden = !(currentUser?.role_category === 'Learner' && c.contest_status === 'UPCOMING' && !c.is_registered);
+    $('#contest-action-message').textContent = c.is_registered ? 'You are registered for this contest.' :
+      c.contest_status === 'UPCOMING' && currentUser?.role_category !== 'Learner' ? 'Sign in with a Learner account to register.' :
+      c.contest_status === 'LIVE' ? 'Registration is closed. Only registered learners can submit.' : '';
+    $('#contest-edit-button').hidden = !(c.is_organizer && c.contest_status === 'UPCOMING');
+    renderContestProblems(detail.problems || [], c); renderContestLeaderboard(board.leaderboard || []);
+    const dialog = $('#contest-dialog'); if (!dialog.open) dialog.showModal();
+  } catch (error) { notify(error.message, 'error'); }
+}
+
+async function registerForActiveContest() {
+  if (!activeContest) return;
+  const button = $('#contest-register-button'); button.disabled = true;
+  try {
+    await api('/api/contests/' + activeContest.contest_id + '/register', { method: 'POST' });
+    $('#contest-action-message').textContent = 'Registration successful.';
+    await loadContests(); await openContestDetails(activeContest.contest_id);
+  } catch (error) { $('#contest-action-message').textContent = error.message; }
+  finally { button.disabled = false; }
+}
+
 async function loadTopics() {
   const payload = await api('/api/topics');
   topics = payload.topics || [];
@@ -146,6 +283,7 @@ async function loadProblems() {
     const payload = await api('/api/problems' + query);
     problems = payload.problems || [];
     render();
+    populateContestProblemOptions();
   } catch (error) {
     list.textContent = error.message;
     notify(error.message, 'error');
@@ -200,7 +338,9 @@ function addSampleBlock(container, label, value) {
   container.append(block);
 }
 
-async function openProblemDetails(problemId) {
+async function openProblemDetails(problemId, contestId = null, contestStatus = null) {
+  currentContestId = contestId;
+  currentContestStatus = contestStatus;
   try {
     const payload = await api('/api/problems/' + problemId);
     const problem = payload.problem;
@@ -398,7 +538,7 @@ async function runOrSubmitCode(action) {
   try {
     const created = await api('/api/submissions', {
       method: 'POST',
-      body: JSON.stringify({ problem_id: currentProblemId, language_id: languageId, code, action })
+      body: JSON.stringify({ problem_id: currentProblemId, language_id: languageId, code, action, contest_id: currentContestId })
     });
     $('#submission-status').textContent = 'Execution queued as #' + created.submission_id + '.';
     await refreshSubmission(currentProblemId, created.submission_id, action);
@@ -417,6 +557,13 @@ async function setupSubmissionWorkspace(problemId) {
   $('#submission-record').hidden = true;
   $('#submission-status').textContent = '';
   if (!canSubmitCode()) return;
+  if (currentContestId && currentContestStatus !== 'LIVE') {
+    $('#run-samples').disabled = true;
+    $('#submit-code').disabled = true;
+    $('#submission-language').disabled = true;
+    $('#language-help').textContent = 'Contest submissions are available only during the live contest window.';
+    return;
+  }
   try {
     const languages = await loadAvailableLanguages();
     const ready = languages.length > 0;
@@ -586,6 +733,7 @@ $('#login-form').addEventListener('submit', async (event) => {
     $('#login-password').value = '';
     updateAccountUI();
     await loadProgress();
+    await loadContests();
     notify(
       result.passwordUpgraded
         ? 'Signed in. Legacy password hash upgraded to Argon2id.'
@@ -607,6 +755,7 @@ $('#logout-button').addEventListener('click', async () => {
     $('#form-panel').hidden = true;
     $('#show-inactive').checked = false;
     updateAccountUI();
+    await loadContests();
     notify('You have been logged out.', 'success');
     await loadProblems();
   } catch (error) {
@@ -618,6 +767,31 @@ $('#new-button').addEventListener('click', () => openForm());
 $('#cancel-button').addEventListener('click', () => { $('#form-panel').hidden = true; });
 $('#detail-close').addEventListener('click', () => $('#problem-dialog').close());
 $('#progress-refresh').addEventListener('click', loadProgress);
+$('#create-contest-button').addEventListener('click', () => openContestForm());
+$('#contest-cancel').addEventListener('click', () => { $('#contest-editor').hidden = true; });
+$('#contest-close').addEventListener('click', () => $('#contest-dialog').close());
+$('#contest-register-button').addEventListener('click', registerForActiveContest);
+$('#contest-edit-button').addEventListener('click', () => {
+  if (!activeContest) return;
+  $('#contest-dialog').close();
+  openContestForm(activeContest.contest_id);
+});
+$('#contest-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const contestId = $('#contest-id').value;
+  const problemIds = Array.from($('#contest-problem-ids').selectedOptions).map((option) => Number(option.value));
+  const body = { name: $('#contest-name').value, start_time: $('#contest-start').value, end_time: $('#contest-end').value, rules: $('#contest-rules').value, problem_ids: problemIds };
+  $('#contest-save').disabled = true; $('#contest-form-error').textContent = '';
+  try {
+    const result = await api(contestId ? '/api/contests/' + contestId : '/api/contests', {
+      method: contestId ? 'PUT' : 'POST', body: JSON.stringify(body)
+    });
+    $('#contest-editor').hidden = true;
+    notify(contestId ? 'Contest updated.' : 'Contest created as #' + result.contest.contest_id + '.', 'success');
+    await loadContests(); await openContestDetails(result.contest.contest_id);
+  } catch (error) { $('#contest-form-error').textContent = error.message; }
+  finally { $('#contest-save').disabled = false; }
+});
 $('#run-samples').addEventListener('click', () => runOrSubmitCode('run'));
 $('#submit-code').addEventListener('click', () => runOrSubmitCode('submit'));
 $('#search').addEventListener('input', render);
@@ -661,4 +835,5 @@ $('#problem-form').addEventListener('submit', async (event) => {
   await loadTopics();
   await loadProblems();
   await loadProgress();
+  await loadContests();
 })();
