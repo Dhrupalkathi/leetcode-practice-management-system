@@ -53,8 +53,11 @@ app.use('/api', (req, res, next) => {
 });
 
 function roleCategory(roleName) {
-  return String(roleName || '').replace(new RegExp('\\s+L\\d+
+  const value = String(roleName || '');
+  const marker = value.lastIndexOf(' L');
+  return marker < 0 ? value : value.slice(0, marker);
 }
+
 function shapeUser(row) {
   return {
     user_id: row.user_id, name: row.name, email: row.email,
