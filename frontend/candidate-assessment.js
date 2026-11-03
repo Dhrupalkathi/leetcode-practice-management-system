@@ -261,6 +261,16 @@ async function renderAssessmentState(me) {
   }
 }
 
+async function finishAssessment() {
+  if(!assessmentData||assessmentData.status!=='Started')return;
+  if(!confirm('Finish and submit this assessment now? You will not be able to change your answers afterwards.'))return;
+  $('#candidate-finish').disabled=true;
+  try{
+    const result=await api('/api/candidate-assessment/finish',{method:'POST'});
+    setNotice('Assessment submitted. Your score: '+result.score+' / 100.');
+    await refreshCandidateState();
+  }catch(error){setNotice(error.message,true);$('#candidate-finish').disabled=false;}
+}
 async function refreshCandidateState() {
   try{const me=await api('/api/candidate-assessment/me');await renderAssessmentState(me);}
   catch(error){setNotice(error.message,true);}
@@ -276,6 +286,7 @@ async function beginAssessment() {
 }
 
 $('#candidate-start').addEventListener('click',beginAssessment);
+$('#candidate-finish').addEventListener('click',finishAssessment);
 $('#candidate-run').addEventListener('click',()=>submitCode('run'));
 $('#candidate-submit').addEventListener('click',()=>submitCode('submit'));
 
