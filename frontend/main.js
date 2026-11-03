@@ -587,8 +587,10 @@ async function openContestForm(contestId = null) {
 function renderContestProblems(rows, contest) {
   const container = $('#contest-detail-problems'); container.replaceChildren();
   const canSolve = contest.contest_status === 'LIVE' && contest.is_registered;
-  if ((contest.contest_status === 'UPCOMING' && !contest.is_organizer) ||
-      (contest.contest_status === 'LIVE' && !contest.is_organizer && !contest.is_registered)) {
+  const canManageProblemSet = Boolean(contest.can_manage) && contest.contest_status === 'UPCOMING';
+  $('#contest-moderation-controls').hidden = !canManageProblemSet;
+  if ((contest.contest_status === 'UPCOMING' && !contest.can_manage) ||
+      (contest.contest_status === 'LIVE' && !contest.can_manage && !contest.is_registered)) {
     const message = document.createElement('p'); message.className = 'muted';
     message.textContent = contest.contest_status === 'UPCOMING'
       ? 'Contest problems become accessible when the contest starts.'
@@ -607,7 +609,24 @@ function renderContestProblems(rows, contest) {
       $('#contest-dialog').close();
       await openProblemDetails(problem.problem_id, canSolve ? contest.contest_id : null, canSolve ? 'LIVE' : null);
     });
-    row.append(info, button); container.append(row);
+    row.append(info, button);
+    if (canManageProblemSet) {
+      const remove = document.createElement('button');
+      remove.type = 'button'; remove.className = 'danger secondary'; remove.textContent = 'Remove';
+      remove.addEventListener('click', async () => {
+        remove.disabled = true;
+        try {
+          await api('/api/contests/' + contest.contest_id + '/problems/' + problem.problem_id, { method: 'DELETE' });
+          $('#contest-moderation-message').textContent = 'Problem removed from the contest.';
+          await openContestDetails(contest.contest_id);
+        } catch (error) {
+          $('#contest-moderation-message').textContent = error.message;
+          remove.disabled = false;
+        }
+      });
+      row.append(remove);
+    }
+    container.append(row);
   }
 }
 
@@ -628,6 +647,24 @@ async function openContestDetails(contestId) {
     const detail = results[0]; const board = results[1]; activeContest = detail.contest;
     const c = activeContest;
     c.is_organizer = currentUser && (currentUser.role_category === 'Admin' || (currentUser.role_category === 'Organizer' && Number(c.organizer_id) === Number(currentUser.user_id)));
+    c.is_moderator = currentUser?.role_category === 'Moderator';
+    $('#contest-moderation-message').textContent = '';
+    const chosen = new Set((detail.problems || []).map((p) => Number(p.problem_id)));
+    const addProblemSelect = $('#contest-add-problem-select');
+    addProblemSelect.replaceChildren();
+    for (const problem of problems.filter((p) => p.is_active && !chosen.has(Number(p.problem_id)))) {
+      const option = document.createElement('option');
+      option.value = problem.problem_id;
+      option.textContent = '#' + problem.problem_id + ' · ' + problem.title + ' (' + problem.difficulty + ')';
+      addProblemSelect.append(option);
+    }
+    if (!addProblemSelect.options.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No more active problems available';
+      addProblemSelect.append(option);
+    }
+    $('#contest-add-problem-button').disabled = !addProblemSelect.options.length || !addProblemSelect.value;
     $('#contest-detail-title').textContent = c.name; $('#contest-detail-status').textContent = c.contest_status;
     $('#contest-detail-meta').textContent = contestDate(c.start_time) + ' — ' + contestDate(c.end_time) + ' · ' + c.participant_count + ' participants';
     $('#contest-detail-rules').textContent = c.rules || 'No additional rules were provided.';
@@ -643,6 +680,8 @@ async function openContestDetails(contestId) {
       c.contest_status === 'LIVE' ? 'Registration is closed. Only registered learners can submit.' : '';
     $('#contest-edit-button').hidden = !(c.is_organizer && c.contest_status === 'UPCOMING');
     renderContestProblems(detail.problems || [], c); renderContestLeaderboard(board.leaderboard || []);
+    $('#contest-add-problem-select').disabled = !c.can_manage || c.contest_status !== 'UPCOMING' || $('#contest-add-problem-select').options.length === 0;
+    $('#contest-add-problem-button').disabled = $('#contest-add-problem-select').disabled;
     const dialog = $('#contest-dialog'); if (!dialog.open) dialog.showModal();
   } catch (error) { notify(error.message, 'error'); }
 }
@@ -1277,6 +1316,28 @@ $('#assessment-form').addEventListener('submit',async(event)=>{
 $('#contest-cancel').addEventListener('click', () => { $('#contest-editor').hidden = true; });
 $('#contest-close').addEventListener('click', () => $('#contest-dialog').close());
 $('#contest-register-button').addEventListener('click', registerForActiveContest);
+$('#contest-add-problem-button').addEventListener('click', async () => {
+  if (!activeContest) return;
+  const problemId = Number($('#contest-add-problem-select').value);
+  if (!Number.isSafeInteger(problemId) || problemId <= 0) {
+    $('#contest-moderation-message').textContent = 'Select a problem first.';
+    return;
+  }
+  const button = $('#contest-add-problem-button');
+  button.disabled = true;
+  try {
+    await api('/api/contests/' + activeContest.contest_id + '/problems', {
+      method: 'POST',
+      body: JSON.stringify({ problem_id: problemId })
+    });
+    $('#contest-moderation-message').textContent = 'Problem added to the contest.';
+    await openContestDetails(activeContest.contest_id);
+  } catch (error) {
+    $('#contest-moderation-message').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 $('#contest-edit-button').addEventListener('click', () => {
   if (!activeContest) return;
   $('#contest-dialog').close();
