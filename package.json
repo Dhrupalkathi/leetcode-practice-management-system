@@ -1,0 +1,21 @@
+{
+  "name": "leetcode-practice-management-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DA-IICT MC212 DBMS project - Node.js, Express and PostgreSQL starter",
+  "main": "backend/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "pg": "^8.16.3"
+  }
+}
