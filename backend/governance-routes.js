@@ -455,6 +455,116 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
     } catch(error){next(error);}
   });
 
+  router.get('/admin/reports', authRequired, allowRoles('Admin'), async (req,res,next) => {
+    try {
+      const [summary,popular,lowSuccess,assessmentActivity,dailyActivity] = await Promise.all([
+        pool.query(
+          `SELECT
+             (SELECT COUNT(*)::integer FROM public.users) AS total_users,
+             (SELECT COUNT(*)::integer FROM public.users WHERE is_active=TRUE) AS active_users,
+             (SELECT COUNT(DISTINCT user_id)::integer FROM public.submission
+               WHERE user_id IS NOT NULL AND is_run_only=FALSE
+                 AND submitted_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS active_submitters_30d,
+             (SELECT COUNT(*)::integer FROM public.problem WHERE is_active=TRUE) AS published_problems,
+             (SELECT COUNT(*)::integer FROM public.problem WHERE review_status='PENDING_REVIEW') AS pending_problem_reviews,
+             (SELECT COUNT(*)::integer FROM public.submission
+               WHERE is_run_only=FALSE AND execution_status='COMPLETED') AS completed_submissions,
+             (SELECT COUNT(*)::integer FROM public.submission
+               WHERE is_run_only=FALSE AND execution_status='COMPLETED' AND verdict_id=1) AS accepted_submissions,
+             (SELECT COUNT(*)::integer FROM public.contest) AS total_contests,
+             (SELECT COUNT(*)::integer FROM public.contest
+               WHERE CURRENT_TIMESTAMP BETWEEN start_time AND end_time) AS live_contests,
+             (SELECT COUNT(*)::integer FROM public.assessment) AS total_assessments,
+             (SELECT COUNT(*)::integer FROM public.assessment
+               WHERE is_active=TRUE AND CURRENT_TIMESTAMP BETWEEN start_time AND end_time) AS live_assessments,
+             (SELECT COUNT(*)::integer FROM public.invites WHERE status='Completed') AS completed_assessment_attempts`
+        ),
+        pool.query(
+          `SELECT p.problem_id,p.title,
+                  COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED')::integer AS completed_submissions,
+                  COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED' AND s.verdict_id=1)::integer AS accepted_submissions,
+                  ROUND(
+                    100.0 * COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED' AND s.verdict_id=1)
+                    / NULLIF(COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED'),0),
+                    1
+                  ) AS acceptance_rate
+           FROM public.problem p
+           JOIN public.submission s ON s.problem_id=p.problem_id
+             AND s.user_id IS NOT NULL AND s.assessment_id IS NULL AND s.contest_id IS NULL
+             AND s.is_run_only=FALSE
+           GROUP BY p.problem_id,p.title
+           ORDER BY completed_submissions DESC,p.problem_id
+           LIMIT 10`
+        ),
+        pool.query(
+          `SELECT p.problem_id,p.title,
+                  COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED')::integer AS completed_submissions,
+                  COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED' AND s.verdict_id=1)::integer AS accepted_submissions,
+                  ROUND(
+                    100.0 * COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED' AND s.verdict_id=1)
+                    / NULLIF(COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED'),0),
+                    1
+                  ) AS acceptance_rate
+           FROM public.problem p
+           JOIN public.submission s ON s.problem_id=p.problem_id
+             AND s.user_id IS NOT NULL AND s.assessment_id IS NULL AND s.contest_id IS NULL
+             AND s.is_run_only=FALSE
+           GROUP BY p.problem_id,p.title
+           HAVING COUNT(s.submission_id) FILTER (WHERE s.execution_status='COMPLETED') >= 5
+           ORDER BY acceptance_rate ASC,p.problem_id
+           LIMIT 10`
+        ),
+        pool.query(
+          `SELECT a.assessment_id,a.title,a.start_time,a.end_time,a.is_active,
+                  o.org_name AS organization_name,
+                  COUNT(i.candidate_id)::integer AS invited_candidates,
+                  COUNT(i.candidate_id) FILTER (WHERE i.status='Started')::integer AS started_candidates,
+                  COUNT(i.candidate_id) FILTER (WHERE i.status='Completed')::integer AS completed_candidates,
+                  ROUND(AVG(i.score) FILTER (WHERE i.status='Completed'),1) AS average_completed_score
+           FROM public.assessment a
+           LEFT JOIN public.organization o ON o.organization_id=a.organization_id
+           LEFT JOIN public.invites i ON i.assessment_id=a.assessment_id
+           GROUP BY a.assessment_id,a.title,a.start_time,a.end_time,a.is_active,o.org_name
+           ORDER BY a.start_time DESC,a.assessment_id DESC
+           LIMIT 10`
+        ),
+        pool.query(
+          `WITH calendar AS (
+             SELECT generate_series(
+               CURRENT_DATE - INTERVAL '13 days',
+               CURRENT_DATE,
+               INTERVAL '1 day'
+             )::date AS activity_day
+           ), usage AS (
+             SELECT submitted_at::date AS activity_day,
+                    COUNT(*) FILTER (WHERE is_run_only=FALSE)::integer AS submissions,
+                    COUNT(DISTINCT user_id) FILTER (
+                      WHERE is_run_only=FALSE AND user_id IS NOT NULL
+                    )::integer AS active_submitters
+             FROM public.submission
+             WHERE submitted_at >= CURRENT_DATE - INTERVAL '13 days'
+               AND submitted_at < CURRENT_DATE + INTERVAL '1 day'
+             GROUP BY submitted_at::date
+           )
+           SELECT calendar.activity_day,
+                  COALESCE(usage.submissions,0)::integer AS submissions,
+                  COALESCE(usage.active_submitters,0)::integer AS active_submitters
+           FROM calendar LEFT JOIN usage USING(activity_day)
+           ORDER BY calendar.activity_day`
+        )
+      ]);
+      res.json({
+        generated_at:new Date().toISOString(),
+        period_days:30,
+        summary:summary.rows[0],
+        popular_problems:popular.rows,
+        low_success_problems:lowSuccess.rows,
+        assessment_activity:assessmentActivity.rows,
+        daily_activity:dailyActivity.rows
+      });
+    } catch(error){next(error);}
+  });
+
   router.audit = audit;
   return router;
 }
