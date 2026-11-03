@@ -8,7 +8,7 @@ A LeetCode-style programming practice and technical-assessment platform backed b
 
 - **Accounts and roles:** seeded-user login, automatic legacy SHA-256-to-Argon2id migration, self-service Learner L1 registration, PostgreSQL-backed sessions, and Admin account/role controls.
 - **Problem library:** title search, difficulty/topic filtering, problem detail pages, public sample cases, and hidden-test confidentiality.
-- **Problem lifecycle:** Organizer create/edit/retire with Reviewer approval, changes-requested and rejection decisions, publication status and review history.
+- **Problem lifecycle:** Organizer create/edit/retire with topic tagging, public sample and hidden test-case authoring, immutable test data after submissions exist, Reviewer inspection/approval, changes-requested and rejection decisions, publication status and review history.
 - **Code editor and judge:** supported-language selector, Run samples, Submit solution, asynchronous Judge0 execution, verdicts, per-test outcomes, runtime/memory metrics and personal submission history.
 - **Learner progress:** solved/attempted counts, acceptance rate, streak, daily activity, topic performance, language usage and recent practice.
 - **Contests:** schedule, Organizer/Admin setup, Moderator problem-set management, Learner registration, contest-linked submissions, configurable score/penalty and leaderboard, plus Judge result reviews.
