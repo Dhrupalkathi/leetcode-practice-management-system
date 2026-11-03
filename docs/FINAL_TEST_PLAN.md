@@ -658,6 +658,24 @@ Run these stages in order. Record test date, account and role, steps performed, 
 
 
 
+### H-16 — Admin platform overview reporting
+- **What:** View the aggregate platform overview as an Admin.
+- **Why:** The SRS requires administrative reporting for platform usage, content governance, contests, assessments and submissions.
+- **How:** Open Platform overview in the Admin workspace and compare total users, active accounts, active submitters, published problems, pending reviews, submissions, contests and assessments with read-only aggregate SQL counts.
+- **Expected:** The dashboard displays consistent aggregate values and the rolling 30-day submitter count; it exposes no raw passwords, invitation tokens or source code.
+
+### H-17 — Popular and low-success problem reports
+- **What:** Compare the most attempted and lowest-acceptance practice problems.
+- **Why:** Admins need to identify popular problems and problems that may have unclear statements, difficult tests or low success rates.
+- **How:** Compare both report lists with completed non-run-only practice submissions in PostgreSQL; confirm the low-success report's minimum of five completed attempts.
+- **Expected:** Popular problems are ordered by completed attempt count; low-success problems are ordered by acceptance rate and exclude problems with fewer than five completed attempts. Contest and company-assessment submissions are not mixed into practice problem metrics.
+
+### H-18 — Company assessment activity reporting
+- **What:** View aggregate invited, started and completed candidate counts and average completed score for recent assessments.
+- **Why:** The SRS requires administrative reporting on assessment activity while protecting candidate information.
+- **How:** Compare the assessment report rows with assessment and invite aggregates in PostgreSQL.
+- **Expected:** Candidate counts and averages match stored records; the summary does not expose candidate names, email addresses, invitation tokens or source code.
+
 ## I. Security and non-functional verification
 
 
