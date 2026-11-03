@@ -163,6 +163,7 @@ function setWorkspaceView(viewId) {
   const available = [...navigation.querySelectorAll('[data-view-link]')].map(button => button.dataset.viewLink);
   if (!available.includes(viewId)) return;
   activeWorkspaceView = viewId;
+  $('#role-workspace').hidden = !['review','mentoring','support','judging','administration'].includes(viewId);
   document.querySelectorAll('[data-view]').forEach(section => {
     section.hidden = section.dataset.view !== viewId;
   });
