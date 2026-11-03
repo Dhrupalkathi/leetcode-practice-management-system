@@ -47,7 +47,7 @@ async function recalculateContestRegistration(pool, contestId, userId) {
        GROUP BY fa.problem_id,fa.accepted_at
      ), totals AS (
        SELECT
-         (COUNT(*)::integer * MAX(cfg.points_per_problem))::integer AS score,
+         (COUNT(*)::integer * (SELECT points_per_problem FROM settings))::integer AS score,
          COALESCE(SUM(
            pp.wrong_attempts * cfg.wrong_attempt_penalty_minutes +
            CASE WHEN cfg.time_penalty_enabled THEN
