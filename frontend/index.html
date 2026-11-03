@@ -1,40 +1,61 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Team 24 programming practice platform">
-  <title>Practice Platform | Problem Management</title>
-  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+  <title>Practice Platform | Problem Library</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/main.js" defer></script>
 </head>
 <body>
 <main class="page-shell">
   <header class="topbar">
     <div class="brand-mark" aria-hidden="true">LC</div>
     <div><p class="eyebrow">TEAM 24 · MC212 DBMS</p><h1>Practice Platform</h1></div>
-    <div class="account-area"><span id="account-status" class="phase-tag">Not signed in</span><button id="logout-button" class="secondary" type="button" hidden>Log out</button></div>
+    <div class="account-area">
+      <span id="account-status" class="phase-tag">Not signed in</span>
+      <button id="logout-button" class="secondary" type="button" hidden>Log out</button>
+    </div>
   </header>
+
   <section id="login-panel" class="intro-card login-card">
-    <p class="eyebrow">ACCOUNT ACCESS</p><h2>Sign in to your account</h2>
+    <p class="eyebrow">ACCOUNT ACCESS</p>
+    <h2>Sign in to your account</h2>
     <p class="intro-copy">Use an existing seeded account. Its legacy lab password hash is upgraded to Argon2id after a successful login.</p>
     <form id="login-form" class="login-form">
       <label>Email<input id="login-email" type="email" autocomplete="username" required maxlength="320"></label>
       <label>Password<input id="login-password" type="password" autocomplete="current-password" required maxlength="1024"></label>
-      <div class="form-actions"><button id="login-button" type="submit">Sign in</button><span id="login-error" class="error" role="alert"></span></div>
+      <div class="form-actions">
+        <button id="login-button" type="submit">Sign in</button>
+        <span id="login-error" class="error" role="alert"></span>
+      </div>
     </form>
-    <p class="login-hint">For local seeded demo accounts only, the original lab generator used password <code>pw</code> followed by the user ID. Never use these demo credentials outside this local project.</p>
+    <p class="login-hint">For local seeded demo accounts only, the original lab generator used password pw followed by the user ID. Never use these demo credentials outside this local project.</p>
   </section>
+
   <section class="intro-card">
-    <div class="section-heading"><div><p class="eyebrow">PROBLEM LIBRARY</p><h2>Practice. Improve. Repeat.</h2></div><button id="new-button" type="button" hidden>＋ New problem</button></div>
-    <p class="intro-copy">Browse active problems. Organizers can manage problems after signing in. Retiring a problem preserves related records.</p>
+    <div class="section-heading">
+      <div><p class="eyebrow">PROBLEM LIBRARY</p><h2>Practice. Improve. Repeat.</h2></div>
+      <button id="new-button" type="button" hidden>＋ New problem</button>
+    </div>
+    <p class="intro-copy">Browse active problems by title, difficulty, and topic. Open any problem to read its full statement and public sample cases. Organizers can manage problems after signing in.</p>
     <div class="toolbar">
       <input id="search" type="search" placeholder="Search problem title…" aria-label="Search problems">
-      <select id="difficulty-filter" aria-label="Filter by difficulty"><option value="">All difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
+      <select id="difficulty-filter" aria-label="Filter by difficulty">
+        <option value="">All difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option>
+      </select>
+      <select id="topic-filter" aria-label="Filter by topic"><option value="">All topics</option></select>
       <label class="toggle"><input id="show-inactive" type="checkbox" disabled> Show retired</label>
     </div>
     <p id="notice" class="notice" role="status" aria-live="polite"></p>
   </section>
+
   <section id="form-panel" class="form-panel" hidden>
-    <div class="section-heading"><div><p class="eyebrow">PROBLEM EDITOR</p><h2 id="form-title">Create a problem</h2></div><button id="cancel-button" class="secondary" type="button">Close</button></div>
+    <div class="section-heading">
+      <div><p class="eyebrow">PROBLEM EDITOR</p><h2 id="form-title">Create a problem</h2></div>
+      <button id="cancel-button" class="secondary" type="button">Close</button>
+    </div>
     <form id="problem-form">
       <input id="problem-id" type="hidden">
       <label>Title<input id="title" name="title" maxlength="200" required></label>
@@ -43,19 +64,62 @@
       <label>Input format<textarea id="input-format" name="input_format" rows="3" required></textarea></label>
       <label>Output format<textarea id="output-format" name="output_format" rows="3" required></textarea></label>
       <label class="wide">Constraints (optional)<textarea id="constraints" name="constraints" rows="2"></textarea></label>
-      <div class="form-actions"><button id="save-button" type="submit">Save problem</button><span id="form-error" class="error" role="alert"></span></div>
+      <div class="form-actions">
+        <button id="save-button" type="submit">Save problem</button>
+        <span id="form-error" class="error" role="alert"></span>
+      </div>
     </form>
   </section>
+
   <section class="list-section">
-    <div class="list-heading"><div><p class="eyebrow">DATABASE RECORDS</p><h2>Problems <span id="count" class="count">—</span></h2></div><span class="muted">PostgreSQL · leetcode</span></div>
+    <div class="list-heading">
+      <div><p class="eyebrow">DATABASE RECORDS</p><h2>Problems <span id="count" class="count">—</span></h2></div>
+      <span class="muted">PostgreSQL · leetcode</span>
+    </div>
     <div id="problem-list" class="problem-list"><p class="empty">Loading problems…</p></div>
   </section>
-  <footer>Local development build · PostgreSQL-backed sessions · Legacy lab hashes upgraded to Argon2id on successful login.</footer>
+
+  <footer>Local development build · PostgreSQL-backed sessions · Argon2id password migration · Topic-aware problem discovery.</footer>
 </main>
+
 <template id="problem-template">
   <article class="problem-row">
-    <div class="problem-main"><div class="problem-title-line"><span class="problem-id"></span><h3 class="problem-title"></h3><span class="difficulty"></span><span class="retired-tag" hidden>Retired</span></div><p class="problem-description"></p><p class="problem-meta"></p></div>
-    <div class="row-actions"><button class="edit-button secondary" type="button">Edit</button><button class="retire-button danger" type="button">Retire</button></div>
+    <div class="problem-main">
+      <div class="problem-title-line">
+        <span class="problem-id"></span><h3 class="problem-title"></h3>
+        <span class="difficulty"></span><span class="retired-tag" hidden>Retired</span>
+      </div>
+      <p class="problem-description"></p>
+      <div class="problem-topics topic-chips"></div>
+      <p class="problem-meta"></p>
+    </div>
+    <div class="row-actions">
+      <button class="view-button" type="button">View problem</button>
+      <button class="edit-button secondary" type="button">Edit</button>
+      <button class="retire-button danger" type="button">Retire</button>
+    </div>
   </article>
 </template>
-</body></html>
+
+<dialog id="problem-dialog" class="problem-dialog" aria-labelledby="detail-title">
+  <div class="dialog-header">
+    <div>
+      <p id="detail-id" class="eyebrow"></p>
+      <h2 id="detail-title">Problem details</h2>
+      <span id="detail-difficulty" class="difficulty"></span>
+    </div>
+    <button id="detail-close" class="secondary" type="button">Close</button>
+  </div>
+  <section class="detail-section">
+    <h3>Topics</h3>
+    <div id="detail-topics" class="topic-chips"></div>
+  </section>
+  <div id="detail-fields" class="detail-fields"></div>
+  <section class="detail-section">
+    <h3>Public sample test cases</h3>
+    <p class="muted">Hidden judging tests are not displayed here.</p>
+    <div id="detail-samples" class="sample-list"></div>
+  </section>
+</dialog>
+</body>
+</html>
