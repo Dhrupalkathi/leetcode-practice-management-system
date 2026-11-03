@@ -54,6 +54,11 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
     const id=positiveId(req.params.id);
     if(!id) return res.status(400).json({error:'Invalid problem ID.'});
     try {
+      const problem=await pool.query('SELECT created_by FROM public.problem WHERE problem_id=$1',[id]);
+      if(!problem.rowCount) return res.status(404).json({error:'Problem not found.'});
+      if(req.user.role_category==='Organizer' && Number(req.user.organizer_id)!==Number(problem.rows[0].created_by)) {
+        return res.status(404).json({error:'Problem not found.'});
+      }
       const result=await pool.query(
         `SELECT pr.review_id,pr.problem_id,pr.reviewer_id,u.name AS reviewer_name,
                 pr.decision,pr.comments,pr.reviewed_at
@@ -299,7 +304,13 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
     if(req.body.problem_id!=null&&!problemId) return res.status(400).json({error:'Invalid problem ID.'});
     if(req.body.submission_id!=null&&!submissionId) return res.status(400).json({error:'Invalid submission ID.'});
     try {
-      const learner=await pool.query('SELECT 1 FROM public.learner WHERE learner_id=$1',[learnerId]);
+      const learner=await pool.query(
+        `SELECT 1 FROM public.learner l
+         JOIN public.users u ON u.user_id=l.learner_id
+         JOIN public.role r ON r.role_id=u.role_id
+         WHERE l.learner_id=$1 AND r.role_name LIKE 'Learner L%'`,
+        [learnerId]
+      );
       if(!learner.rowCount) return res.status(404).json({error:'Learner profile not found.'});
       if(problemId){const p=await pool.query('SELECT 1 FROM public.problem WHERE problem_id=$1',[problemId]);if(!p.rowCount)return res.status(404).json({error:'Problem not found.'});}
       if(submissionId){
