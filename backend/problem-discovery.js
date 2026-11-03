@@ -67,11 +67,9 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
            FROM public.problem p
            WHERE p.is_active=TRUE
               OR ($1::boolean AND (
-                   p.review_status='RETIRED'
-                   OR (p.review_status IN ('PENDING_REVIEW','CHANGES_REQUESTED','REJECTED')
-                       AND ($2::text IN ('Reviewer','Admin')
-                            OR ($2::text='Organizer' AND p.created_by=$3::integer))
-                   )
+                   p.review_status IN ('RETIRED','PENDING_REVIEW','CHANGES_REQUESTED','REJECTED')
+                   AND ($2::text IN ('Reviewer','Admin')
+                        OR ($2::text='Organizer' AND p.created_by=$3::integer))
                  ))
            ORDER BY p.problem_id`,[includeInactive,req.user?.role_category||'',req.user?.organizer_id||null]
         );
@@ -100,8 +98,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       if(!result.rows[0].is_active) {
         return authRequired(req,res,()=>{
           const problem=result.rows[0];
-          const reviewOnly=['PENDING_REVIEW','CHANGES_REQUESTED','REJECTED'].includes(problem.review_status);
-          const allowed=!reviewOnly ||
+          const allowed=
             ['Reviewer','Admin'].includes(req.user.role_category) ||
             (req.user.role_category==='Organizer' && Number(req.user.organizer_id)===Number(problem.created_by));
           if(!allowed) return res.status(404).json({error:'Problem not found.'});
