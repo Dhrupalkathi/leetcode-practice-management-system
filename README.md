@@ -2,63 +2,51 @@
 
 **Team 24 · MC212 Database Management Systems · DA-IICT**
 
-This repository contains the implementation of our LeetCode-style practice management system. Development is being done in phases so each feature can be tested before the next one is added.
+A LeetCode-style programming practice platform backed by PostgreSQL.
 
-## Current phase: Phase 1 — PostgreSQL connectivity
+## Current implementation
 
-The current starter uses:
-
-- Node.js 20+
-- Express.js
-- PostgreSQL
-- node-postgres (`pg`)
-- Plain HTML, CSS and browser JavaScript
-
-At this stage the application only verifies database connectivity. Problem CRUD, login, role checks, submissions and Judge0 code execution are **not implemented yet**.
+- **Phase 1 complete:** browser → Express → PostgreSQL connectivity verified with `SELECT version()`.
+- **Phase 2 in progress:** problem listing, search/filter, create, edit and safe retirement.
+- Stack: Node.js 20+, Express, PostgreSQL (`pg`), HTML/CSS and browser JavaScript.
 
 ## Local setup
 
-1. Install Node.js 20 or newer and npm.
-2. Make sure the existing PostgreSQL database named `leetcode` is running.
-3. Clone this repository and enter its folder.
-4. Copy the example environment file and edit it:
-
-   ```bash
-   cp .env.example .env
-   nano .env
-   ```
-
-5. Enter your own PostgreSQL connection details in `.env`. Do not share your password.
-6. Install dependencies and start the application:
+1. Use the existing PostgreSQL database named `leetcode`.
+2. Copy `.env.example` to `.env` and set your local database password.
+3. Set `DEV_ORGANIZER_ID` to an existing organizer ID. This is a temporary local development identity until login and server-side authorization are implemented.
+4. Install and run:
 
    ```bash
    npm install
    npm run dev
    ```
 
-7. Open `http://127.0.0.1:3000` and select **Test database connection**.
+5. Open http://127.0.0.1:3000.
 
-The backend also runs `SELECT version()` at startup. The browser communicates with Express; it never connects directly to PostgreSQL.
+## Apply the database migration
 
-## Database safety
+Take a database backup first. Then run the migration once:
 
-The existing project database has 19 relations and sample data. **Do not run the supplied `schema_with_data_fixed.sql` against the populated database as a setup step.** It begins by dropping tables with `CASCADE`. Future schema changes will be provided as small, reviewed migration scripts.
+```bash
+psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/001_problem_crud.sql
+```
 
-## Security approach
+The migration adds `problem_statement` and identity generation for `problem_id` starting at 81. It does not delete or recreate existing rows or foreign-key relationships. Review the SQL before running it.
 
-Security controls will be implemented in the actual frontend, backend, database access and code-execution integration, then tested. A control will only be described as implemented after its code and test evidence exist.
+## Problem API
 
-The `.env` file is excluded from Git. Never commit database credentials, Judge0 API tokens, or other secrets.
+- `GET /api/problems` — list active problems.
+- `GET /api/problems?includeInactive=true` — include retired problems (local development UI).
+- `GET /api/problems/:id` — get one problem.
+- `POST /api/problems` — create a problem.
+- `PUT /api/problems/:id` — update a problem.
+- `PATCH /api/problems/:id/retire` — retire a problem without deleting related history.
 
-## Planned phases
+Database access uses parameterized queries. The database unique constraint remains authoritative for duplicate titles.
 
-1. PostgreSQL connectivity.
-2. Safe `PROBLEM` CRUD for the Lab 11 demonstration.
-3. Password hashing, login, and server-side role/ownership checks.
-4. Problem and test-case management.
-5. Judge0 integration with execution limits and a separate execution environment.
-6. Submission history, verdicts, and basic progress.
-7. Selected contest functionality.
-8. Security tests and evidence report.
+## Important security limitation
 
-Features outside the agreed simplified SRS scope will not be added without a project decision.
+This is a localhost-only development build. The temporary `DEV_ORGANIZER_ID` setting is **not authentication or authorization**. Do not deploy this application or expose it to a network as a multi-user service until login, server-side role/ownership checks and a restricted database account are implemented. Do not commit `.env`, passwords or API tokens.
+
+The migration is incremental. Never run the old `schema_with_data_fixed.sql` against the populated database; it contains destructive DROP ... CASCADE statements.
