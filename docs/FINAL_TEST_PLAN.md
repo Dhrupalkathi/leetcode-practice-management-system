@@ -676,6 +676,12 @@ Run these stages in order. Record test date, account and role, steps performed, 
 
 
 
+### H-19 — Admin creates a problem with an Organizer owner
+- **What:** Create a problem while signed in as Admin and assign an active Organizer profile as its content owner.
+- **Why:** The SRS access matrix permits Admin problem creation, while the supplied relational schema stores `problem.created_by` as a foreign key to `organizer.organizer_id`.
+- **How:** Open the Admin problem editor, select an active Organizer and required topic/test cases, then submit for Reviewer approval. Inspect the created problem and audit event.
+- **Expected:** The problem is created as `PENDING_REVIEW` and inactive, `created_by` references the selected Organizer, and the audit actor is the Admin. Missing, inactive or invalid Organizer owners are rejected.
+
 ### H-16 — Admin platform overview reporting
 - **What:** View the aggregate platform overview as an Admin.
 - **Why:** The SRS requires administrative reporting for platform usage, content governance, contests, assessments and submissions.
