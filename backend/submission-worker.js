@@ -9,6 +9,30 @@ async function claimNextSubmission(pool) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Re-queue jobs whose worker disappeared. A lease is renewed while each
+    // test case runs, so a live worker is not mistaken for a crashed one.
+    await client.query(
+      `WITH expired AS (
+         SELECT submission_id
+         FROM public.submission
+         WHERE execution_status='RUNNING'
+           AND worker_lease_until IS NOT NULL
+           AND worker_lease_until < CURRENT_TIMESTAMP
+         FOR UPDATE SKIP LOCKED
+       )
+       DELETE FROM public.submission_test_result tr
+       USING expired e
+       WHERE tr.submission_id=e.submission_id`
+    );
+    await client.query(
+      `UPDATE public.submission
+       SET execution_status='PENDING',worker_lease_until=NULL,
+           verdict_id=NULL,time_taken_ms=0,memory_used_kb=0,
+           execution_error=NULL
+       WHERE execution_status='RUNNING'
+         AND worker_lease_until IS NOT NULL
+         AND worker_lease_until < CURRENT_TIMESTAMP`
+    );
     const claimed = await client.query(
       `SELECT s.submission_id,s.code,s.problem_id,s.language_id,s.is_run_only,
               s.assessment_id,s.candidate_id,s.contest_id,s.user_id
@@ -25,7 +49,7 @@ async function claimNextSubmission(pool) {
 
     const submission = claimed.rows[0];
     await client.query(
-      "UPDATE public.submission SET execution_status='RUNNING' WHERE submission_id=$1",
+      "UPDATE public.submission SET execution_status='RUNNING',worker_lease_until=CURRENT_TIMESTAMP + INTERVAL '2 minutes' WHERE submission_id=$1",
       [submission.submission_id]
     );
     const tests = await client.query(
@@ -53,7 +77,7 @@ async function claimNextSubmission(pool) {
 async function markUnavailable(pool, submissionId, message) {
   await pool.query(
     `UPDATE public.submission
-     SET execution_status='FAILED',execution_error=$1
+     SET execution_status='FAILED',execution_error=$1,worker_lease_until=NULL
      WHERE submission_id=$2 AND execution_status IN ('PENDING','RUNNING')`,
     [message,submissionId]
   );
