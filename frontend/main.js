@@ -229,6 +229,7 @@ function updateAccountUI() {
   $('#admin-panel').hidden = !(signedIn && currentUser.role_category === 'Admin');
   const canViewProgress = signedIn && currentUser.role_category === 'Learner';
   $('#progress-button').hidden = !canViewProgress;
+  renderWorkspaceNavigation();
 }
 
 function addTopicChips(container, assignedTopics) {
@@ -1812,7 +1813,8 @@ $('#cancel-button').addEventListener('click', () => { $('#form-panel').hidden = 
 $('#detail-close').addEventListener('click', () => $('#problem-dialog').close());
 $('#progress-button').addEventListener('click', async () => {
   const panel = $('#progress-panel');
-  panel.hidden = !panel.hidden;
+  if (panel.hidden) setWorkspaceView('dashboard');
+  else setWorkspaceView('problems');
   if (!panel.hidden) await loadProgress();
 });
 $('#progress-refresh').addEventListener('click', loadProgress);
