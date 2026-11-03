@@ -39,6 +39,20 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     } catch(error){next(error);}
   });
 
+  router.get('/problem-organizers', authRequired, allowRoles('Admin'), async (req,res,next) => {
+    try {
+      const result=await pool.query(
+        `SELECT o.organizer_id,u.name AS organizer_name,u.email,org.org_name AS organization_name
+         FROM public.organizer o
+         JOIN public.users u ON u.user_id=o.organizer_id
+         JOIN public.organization org ON org.organization_id=o.organization_id
+         WHERE u.is_active=TRUE
+         ORDER BY org.org_name,u.name`
+      );
+      res.json({organizers:result.rows});
+    } catch(error){next(error);}
+  });
+
   router.get('/problems', (req,res,next) => {
     const includeInactive=req.query.includeInactive==='true';
     const sendProblems=async()=>{
@@ -138,10 +152,22 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     } catch(error){next(error);}
   });
 
-  router.post('/problems', authRequired, allowRoles('Organizer'), async (req,res,next) => {
+  router.post('/problems', authRequired, allowRoles('Organizer','Admin'), async (req,res,next) => {
     const input=validateProblem(req.body);
     if(input.errors.length) return res.status(400).json({error:'Validation failed.',details:input.errors});
-    if(!req.user.organizer_id) return res.status(403).json({error:'Organizer profile is missing.'});
+    const creatorOrganizerId=req.user.role_category==='Admin'
+      ? Number(req.body.organizer_id)
+      : req.user.organizer_id;
+    if(!Number.isSafeInteger(creatorOrganizerId)||creatorOrganizerId<=0) {
+      return res.status(400).json({error:'Select an active Organizer owner for this problem.'});
+    }
+    const owner=await pool.query(
+      `SELECT o.organizer_id FROM public.organizer o
+       JOIN public.users u ON u.user_id=o.organizer_id
+       WHERE o.organizer_id=$1 AND u.is_active=TRUE`,
+      [creatorOrganizerId]
+    );
+    if(!owner.rowCount) return res.status(400).json({error:'Selected Organizer owner does not exist or is inactive.'});
     const topicsValid=await validateTopicIds(input.topicIds);
     if(!topicsValid) return res.status(400).json({error:'One or more selected topics do not exist.'});
     const client=await pool.connect();
@@ -158,7 +184,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       );
       await addProblemRelations(client,created.rows[0].problem_id,input.topicIds,input.testCases);
       await client.query('COMMIT');
-      if(audit) await audit(req.user.user_id,'PROBLEM_SUBMITTED_FOR_REVIEW','problem',created.rows[0].problem_id,{title:created.rows[0].title,topic_ids:input.topicIds,test_case_count:input.testCases.length});
+      if(audit) await audit(req.user.user_id,'PROBLEM_SUBMITTED_FOR_REVIEW','problem',created.rows[0].problem_id,{title:created.rows[0].title,organizer_owner_id:creatorOrganizerId,topic_ids:input.topicIds,test_case_count:input.testCases.length});
       res.status(201).json({problem:created.rows[0],message:'Problem and test cases submitted for Reviewer approval.'});
     } catch(error){
       await client.query('ROLLBACK');
