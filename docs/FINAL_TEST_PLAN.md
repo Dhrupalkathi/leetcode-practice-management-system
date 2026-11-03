@@ -242,61 +242,54 @@ Run these stages in order. Record test date, account and role, steps performed, 
 ---
 ## E. Submission history and progress analytics
 
-### E-01 — Learner-only progress dashboard
-- **What:** View the dashboard under a Learner account and confirm it is not shown as a learner dashboard to other role categories.
-- **Why:** Progress analytics belong to the registered-solver workflow, not to guests or unrelated organizational roles.
-- **How:** Sign in with a Learner account, then sign in with an Organizer or another role category.
-- **Expected:** Learner sees the dashboard; non-Learner roles do not receive the Learner dashboard data.
+### E-01 — Learner-only dashboard access
+- **What:** Open the progress dashboard as a Learner and as a non-Learner role.
+- **Why:** Progress analytics are learner-specific and must follow the role policy.
+- **How:** Sign in with a Learner account and open My progress; repeat with Organizer, Reviewer, and Guest accounts.
+- **Expected:** Learners can open their dashboard; roles not authorized by the current policy do not receive the dashboard endpoint or button.
 
 ### E-02 — Solved and attempted problem counts
-- **What:** Compare solved and attempted counts with completed practice submission rows.
-- **Why:** The dashboard must reflect stored work rather than static seed values.
-- **How:** Compare the dashboard with distinct problem IDs in the user's completed, non-run-only, non-assessment submissions.
-- **Expected:** Attempted count equals distinct completed practice problems; solved count equals distinct problems with at least one Accepted practice submission.
+- **What:** Verify the dashboard's solved and attempted problem totals.
+- **Why:** Learners need accurate progress counts, not raw submission totals.
+- **How:** Compare dashboard values with distinct problem IDs in completed, non-run-only submissions; a problem counts as solved if at least one attempt has a PASSED verdict.
+- **Expected:** Counts match the database calculation; sample runs and pending/failed infrastructure jobs do not inflate solved counts.
 
-### E-03 — Acceptance rate
-- **What:** Verify the displayed acceptance rate.
-- **Why:** Learners need a consistent measure of how many completed attempts were accepted.
-- **How:** Compute Accepted completed practice submissions divided by all completed practice submissions for that user.
-- **Expected:** Dashboard percentage equals the computed ratio and displays 0% when there are no completed submissions.
+### E-03 — Submission success rate
+- **What:** Verify the displayed success rate.
+- **Why:** A success rate helps learners understand their accuracy across evaluated attempts.
+- **How:** Count accepted completed full submissions and divide by all completed full submissions; compare with the dashboard value.
+- **Expected:** The displayed percentage matches the evaluated submission calculation and is zero when no full submissions have completed.
 
-### E-04 — Practice streak
-- **What:** Verify current consecutive-day practice activity.
-- **Why:** The SRS includes practice streaks as a learner progress indicator.
-- **How:** Compare the dashboard with distinct calendar dates containing completed, non-run-only practice submissions. The streak is current only when the latest active date is today or yesterday.
-- **Expected:** Consecutive dates are counted backward without gaps; an expired streak displays zero.
-
-### E-05 — Daily activity chart
-- **What:** Verify the 30-day activity graph.
-- **Why:** Learners need to see how practice changes over time.
-- **How:** Compare each chart day with counts of completed practice submissions on that date.
-- **Expected:** Chart contains the 30-day date range, including zero-activity days, and counts match PostgreSQL.
-
-### E-06 — Topic performance
-- **What:** Verify attempted and solved problems per topic.
+### E-04 — Topic performance
+- **What:** Review solved/attempted counts and solve rate for topics.
 - **Why:** The SRS requires topic strengths and weaknesses.
-- **How:** Compare the dashboard with ProblemTopic and the user's completed practice submissions.
-- **Expected:** A problem associated with multiple topics contributes to each relevant topic; solved counts use distinct accepted problems.
+- **How:** Compare the dashboard topic rows with the user's completed submissions joined through ProblemTopic and Topic.
+- **Expected:** Each topic count reflects distinct problems; multi-topic problems are included in every associated topic and are not double-counted within a topic.
 
-### E-07 — Language usage
-- **What:** View language-version usage.
-- **Why:** Learners may want to understand which languages they use most often.
-- **How:** Compare the dashboard with grouped completed practice submissions by language_id.
-- **Expected:** Language/version counts match persisted practice records.
+### E-05 — Current practice streak
+- **What:** Verify the consecutive-day practice streak.
+- **Why:** The SRS identifies practice streak as a learner progress statistic.
+- **How:** Compare full-submission dates with the displayed streak, checking activity on today, yesterday, consecutive days, and gaps.
+- **Expected:** The streak counts consecutive calendar dates up to today, or up to yesterday when no submission has yet been made today; sample runs are excluded.
 
-### E-08 — Recent activity and refresh
-- **What:** View the recent practice list and refresh dashboard data.
-- **Why:** Learners need a quick view of their recent work and current metrics.
-- **How:** Submit a practice solution, return to the dashboard, and press Refresh.
-- **Expected:** New records appear with correct problem, attempt, language, date and verdict; raw source code is not shown in the dashboard.
+### E-06 — Last-30-days activity
+- **What:** Inspect daily submission activity for the past 30 days.
+- **Why:** Learners need to see consistency and recent practice trends.
+- **How:** Compare each activity cell with the number of full submissions on that date.
+- **Expected:** The activity grid contains 30 days in date order; zero-submission days remain empty.
 
-### E-09 — Assessment activity excluded from practice metrics
-- **What:** Confirm assessment-linked submissions do not change the ordinary learner practice dashboard.
-- **Why:** Company assessment activity is a distinct context with separate confidentiality and reporting rules.
-- **How:** Compare practice-only metrics against rows with a non-null assessment_id.
-- **Expected:** Assessment-linked submissions do not contribute to practice dashboard counts, streak, topic or language statistics.
+### E-07 — Recent submissions list
+- **What:** Review the recent submission list in the dashboard.
+- **Why:** Learners need a quick route back to recent work and results.
+- **How:** Compare the listed items with the most recent full submissions owned by that learner.
+- **Expected:** The list contains only the learner's own full submissions, ordered newest first, and excludes sample runs.
 
----
+### E-08 — Dashboard refresh after new submission
+- **What:** Verify dashboard values refresh after a new full submission.
+- **Why:** Progress should reflect saved activity rather than stale browser state.
+- **How:** Record current totals, submit a solution, reopen My progress, and compare the updated values.
+- **Expected:** Counts and activity refresh from PostgreSQL; a failed or pending execution does not count as a solved problem.
+
 ## F. Contests
 
 ### F-01 — Public contest schedule
