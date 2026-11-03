@@ -38,6 +38,13 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
                 (SELECT COUNT(*)::integer FROM public.includes i WHERE i.contest_id=c.contest_id) AS problem_count,
                 (SELECT COUNT(*)::integer FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id) AS participant_count,
                 EXISTS(SELECT 1 FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id AND cr.learner_id=$1) AS is_registered,
+                (
+                  c.organizer_id=$1 OR c.created_by_user_id=$1 OR EXISTS(
+                    SELECT 1 FROM public.users admin_user
+                    JOIN public.role admin_role ON admin_role.role_id=admin_user.role_id
+                    WHERE admin_user.user_id=$1 AND admin_role.role_name LIKE 'Admin L%'
+                  )
+                ) AS can_manage,
                 CASE WHEN CURRENT_TIMESTAMP < c.start_time THEN 'UPCOMING'
                      WHEN CURRENT_TIMESTAMP < c.end_time THEN 'LIVE' ELSE 'ENDED' END AS contest_status
          FROM public.contest c
@@ -60,6 +67,13 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
                 c.created_at, c.organizer_id, COALESCE(organizer_user.name, creator_user.name, 'Platform') AS organizer_name,
                 (SELECT COUNT(*)::integer FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id) AS participant_count,
                 EXISTS(SELECT 1 FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id AND cr.learner_id=$2) AS is_registered,
+                (
+                  c.organizer_id=$2 OR c.created_by_user_id=$2 OR EXISTS(
+                    SELECT 1 FROM public.users admin_user
+                    JOIN public.role admin_role ON admin_role.role_id=admin_user.role_id
+                    WHERE admin_user.user_id=$2 AND admin_role.role_name LIKE 'Admin L%'
+                  )
+                ) AS can_manage,
                 CASE WHEN CURRENT_TIMESTAMP < c.start_time THEN 'UPCOMING'
                      WHEN CURRENT_TIMESTAMP < c.end_time THEN 'LIVE' ELSE 'ENDED' END AS contest_status
          FROM public.contest c
@@ -70,13 +84,16 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
         [contestId, req.session.userId || null]
       );
       if (!result.rowCount) return res.status(404).json({ error: 'Contest not found.' });
+      if (result.rows[0].contest_status === 'UPCOMING' && !result.rows[0].can_manage) {
+        return res.json({ contest: result.rows[0], problems: [], problems_locked: true });
+      }
       const problems = await pool.query(
         `SELECT p.problem_id, p.title, p.difficulty, p.is_active
          FROM public.includes i JOIN public.problem p ON p.problem_id=i.problem_id
          WHERE i.contest_id=$1 ORDER BY p.problem_id`,
         [contestId]
       );
-      res.json({ contest: result.rows[0], problems: problems.rows });
+      res.json({ contest: result.rows[0], problems: problems.rows, problems_locked: false });
     } catch (error) { next(error); }
   });
 
