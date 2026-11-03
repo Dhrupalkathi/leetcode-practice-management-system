@@ -27,3 +27,26 @@
 .sample-block h4{font-size:11px;color:#91a4c7;margin:0 0 6px}
 .sample-block pre{margin:0;padding:11px;border-radius:8px;background:#060d19;color:#c9e7db;white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
 @media(max-width:700px){.detail-fields{grid-template-columns:1fr}.detail-field:first-child{grid-column:auto}.dialog-header{align-items:flex-start}.dialog-header button{flex-shrink:0}#topic-filter{width:100%}}
+
+
+/* Submission editor, verdicts and personal history */
+.submission-workspace[hidden],.submission-record[hidden]{display:none}
+.editor-label{display:block;margin:15px 0 7px;color:#bac9e4;font-size:12px;font-weight:700}
+#submission-language{width:100%;max-width:360px;border:1px solid #354765;border-radius:9px;background:#0b1427;color:#edf2ff;padding:11px 12px}
+#source-code{display:block;width:100%;min-height:260px;margin-top:7px;padding:14px;border:1px solid #354765;border-radius:10px;background:#060d19;color:#d4f4e8;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:4;resize:vertical}
+#source-code:focus{outline:none;border-color:#83dcb9;box-shadow:0 0 0 3px #83dcb922}
+.submission-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+.submission-record{margin-top:16px;border:1px solid #38526f;border-radius:12px;padding:15px;background:#0b1427}
+.submission-record h4,.history-section h4{margin:0 0 10px;font-size:13px}
+.verdict-text{font-weight:800;color:#a7f3d0}
+.test-result-list{display:grid;gap:8px;margin-top:12px}
+.test-result-row{border:1px solid #293954;border-radius:8px;padding:10px}
+.test-result-row strong{font-size:11px}
+.test-result-row p{margin:5px 0 0;color:#91a4c7;font-size:10px}
+.execution-error{white-space:pre-wrap;overflow-wrap:anywhere;color:#fecaca;font-size:11px}
+.code-details{margin-top:14px;color:#bac9e4;font-size:12px}
+.code-details pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;padding:12px;border-radius:8px;background:#060d19;color:#c9e7db}
+.history-section{margin-top:18px;padding-top:15px;border-top:1px solid #293954}
+.history-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #293954;color:#c2d0e4;font-size:11px}
+.history-row button{padding:7px 10px;font-size:10px}
+@media(max-width:700px){.history-row{align-items:flex-start;flex-direction:column}.submission-actions button{flex:1}}
