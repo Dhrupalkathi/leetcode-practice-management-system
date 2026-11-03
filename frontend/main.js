@@ -35,10 +35,50 @@ async function api(url, options = {}) {
   return payload;
 }
 
+
+async function loadProfile() {
+  $('#profile-error').textContent = '';
+  $('#profile-password-error').textContent = '';
+  $('#profile-status').textContent = 'Loading profile…';
+  try {
+    const payload = await api('/api/profile');
+    const profile = payload.profile;
+    $('#profile-name').value = profile.name || '';
+    $('#profile-email').value = profile.email || '';
+    const isLearner = currentUser?.role_category === 'Learner';
+    $('#preferred-language-field').hidden = !isLearner;
+    const select = $('#preferred-language');
+    select.replaceChildren();
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'No preference';
+    select.append(none);
+    for (const language of payload.languages || []) {
+      const option = document.createElement('option');
+      option.value = language.language_id;
+      option.textContent = language.name + ' ' + language.version;
+      option.selected = Number(language.language_id) === Number(profile.preferred_language_id);
+      select.append(option);
+    }
+    $('#profile-status').textContent = profile.role_name + ' · Joined ' + new Date(profile.joined_at).toLocaleDateString();
+  } catch (error) {
+    $('#profile-status').textContent = error.message;
+  }
+}
+
+async function toggleProfilePanel() {
+  const panel = $('#profile-panel');
+  if (!panel.hidden) { panel.hidden = true; return; }
+  panel.hidden = false;
+  await loadProfile();
+}
+
 function updateAccountUI() {
   const signedIn = Boolean(currentUser);
   $('#login-panel').hidden = signedIn;
   $('#logout-button').hidden = !signedIn;
+  $('#profile-button').hidden = !signedIn;
+  if (!signedIn) $('#profile-panel').hidden = true;
   $('#account-status').textContent = signedIn
     ? currentUser.name + ' · ' + currentUser.role_name
     : 'Not signed in';
@@ -1483,11 +1523,65 @@ $('#login-form').addEventListener('submit', async (event) => {
   }
 });
 
+
+$('#profile-button').addEventListener('click', toggleProfilePanel);
+$('#profile-close').addEventListener('click', () => { $('#profile-panel').hidden = true; });
+$('#profile-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('#profile-save').disabled = true;
+  $('#profile-error').textContent = '';
+  const body = { name: $('#profile-name').value, email: $('#profile-email').value };
+  if (currentUser?.role_category === 'Learner') {
+    body.preferred_language_id = $('#preferred-language').value ? Number($('#preferred-language').value) : null;
+  }
+  try {
+    const result = await api('/api/profile', { method: 'PATCH', body: JSON.stringify(body) });
+    currentUser.name = result.profile.name;
+    currentUser.email = result.profile.email;
+    updateAccountUI();
+    $('#profile-status').textContent = result.message || 'Profile updated.';
+    notify('Profile changes saved.', 'success');
+  } catch (error) {
+    $('#profile-error').textContent = error.message;
+  } finally {
+    $('#profile-save').disabled = false;
+  }
+});
+
+$('#profile-password-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('#profile-password-save').disabled = true;
+  $('#profile-password-error').textContent = '';
+  const newPassword = $('#profile-new-password').value;
+  if (newPassword !== $('#profile-confirm-password').value) {
+    $('#profile-password-error').textContent = 'New password and confirmation do not match.';
+    $('#profile-password-save').disabled = false;
+    return;
+  }
+  try {
+    const result = await api('/api/profile/password', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: $('#profile-current-password').value,
+        new_password: newPassword
+      })
+    });
+    $('#profile-password-form').reset();
+    $('#profile-status').textContent = result.message || 'Password changed successfully.';
+    notify('Password changed successfully.', 'success');
+  } catch (error) {
+    $('#profile-password-error').textContent = error.message;
+  } finally {
+    $('#profile-password-save').disabled = false;
+  }
+});
+
 $('#logout-button').addEventListener('click', async () => {
   try {
     await api('/api/auth/logout', { method: 'POST' });
     currentUser = null;
     $('#form-panel').hidden = true;
+    $('#profile-panel').hidden = true;
     $('#show-inactive').checked = false;
     updateAccountUI();
     await loadContests();
