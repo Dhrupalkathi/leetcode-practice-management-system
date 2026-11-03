@@ -83,6 +83,10 @@ async function recalculateCandidateAssessmentScore(pool,assessmentId,candidateId
   );
 }
 async function processSubmission(pool, submission, testCases, language) {
+  if (!Array.isArray(testCases) || testCases.length === 0) {
+    await pool.query("UPDATE public.submission SET execution_status='FAILED',execution_error='No test cases were available when execution started.',worker_lease_until=NULL WHERE submission_id=$1", [submission.submission_id]);
+    return;
+  }
   let totalTime = 0;
   let maximumMemory = 0;
   let finalVerdictId = 1;
