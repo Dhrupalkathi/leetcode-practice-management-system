@@ -125,11 +125,16 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       if(req.user.role_category==='Organizer'&&Number(req.user.organizer_id)!==Number(problem.rows[0].created_by)){
         return res.status(404).json({error:'Problem not found.'});
       }
-      const [tests,topics]=await Promise.all([
+      const [tests,topics,submissions]=await Promise.all([
         pool.query('SELECT test_case_id,input_data,expected_output,is_hidden FROM public.test_case WHERE problem_id=$1 ORDER BY test_case_id',[id]),
-        pool.query('SELECT topic_id FROM public.problem_topic WHERE problem_id=$1 ORDER BY topic_id',[id])
+        pool.query('SELECT topic_id FROM public.problem_topic WHERE problem_id=$1 ORDER BY topic_id',[id]),
+        pool.query('SELECT 1 FROM public.submission WHERE problem_id=$1 LIMIT 1',[id])
       ]);
-      res.json({test_cases:tests.rows,topic_ids:topics.rows.map((row)=>row.topic_id)});
+      res.json({
+        test_cases:tests.rows,
+        topic_ids:topics.rows.map((row)=>row.topic_id),
+        test_cases_locked:submissions.rowCount>0
+      });
     } catch(error){next(error);}
   });
 
