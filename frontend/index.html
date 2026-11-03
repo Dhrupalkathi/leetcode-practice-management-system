@@ -51,6 +51,44 @@
     <p id="notice" class="notice" role="status" aria-live="polite"></p>
   </section>
 
+  <section id="progress-panel" class="progress-panel" hidden>
+    <div class="section-heading">
+      <div><p class="eyebrow">LEARNER DASHBOARD</p><h2>Your progress</h2></div>
+      <button id="progress-refresh" class="secondary" type="button">↻ Refresh</button>
+    </div>
+    <div class="progress-stats">
+      <article class="progress-stat"><span>Solved problems</span><strong id="progress-solved">0</strong></article>
+      <article class="progress-stat"><span>Attempted problems</span><strong id="progress-attempted">0</strong></article>
+      <article class="progress-stat"><span>Acceptance rate</span><strong id="progress-acceptance">0%</strong></article>
+      <article class="progress-stat"><span>Current streak</span><strong id="progress-streak">0 days</strong></article>
+    </div>
+    <div class="progress-secondary-stats">
+      <span><strong id="progress-total-submissions">0</strong> completed submissions</span>
+      <span><strong id="progress-execution-time">0 sec</strong> total execution time</span>
+      <span><strong id="progress-active">0</strong> pending / running</span>
+    </div>
+    <p id="progress-status" class="notice" role="status" aria-live="polite"></p>
+    <div class="progress-grid">
+      <article class="progress-card activity-card">
+        <div><h3>Practice activity</h3><p class="muted">Daily completed submissions · last 30 days</p></div>
+        <div id="daily-activity" class="daily-activity" aria-label="Daily submission activity chart"></div>
+      </article>
+      <article class="progress-card">
+        <h3>Topic performance</h3>
+        <p class="muted">Distinct attempted and solved problems by topic</p>
+        <div id="topic-performance" class="topic-performance"></div>
+      </article>
+      <article class="progress-card">
+        <h3>Language usage</h3>
+        <p class="muted">Completed practice submissions by language version</p>
+        <div id="language-usage" class="language-usage"></div>
+      </article>
+      <article class="progress-card recent-card">
+        <h3>Recent practice activity</h3>
+        <div id="recent-activity" class="recent-activity"></div>
+      </article>
+    </div>
+  </section>
   <section id="form-panel" class="form-panel" hidden>
     <div class="section-heading">
       <div><p class="eyebrow">PROBLEM EDITOR</p><h2 id="form-title">Create a problem</h2></div>
