@@ -101,6 +101,33 @@ async function loadReviewQueue() {
       const title = element('h4','', '#' + problem.problem_id + ' · ' + problem.title);
       const meta = element('p','muted',problem.difficulty + ' · ' + problem.review_status + ' · ' + (problem.creator_name || 'Unknown creator'));
       const statement = element('p','workspace-item-text',problem.problem_statement || 'No statement supplied.');
+      const reviewDetails = document.createElement('details');
+      reviewDetails.className = 'review-test-details';
+      const reviewSummary = element('summary','','Inspect topics and all test cases');
+      reviewDetails.append(reviewSummary);
+      try {
+        const managed = await api('/api/problems/' + problem.problem_id + '/test-cases/manage');
+        const topicNames = (managed.topic_ids || []).map((topicId) =>
+          topics.find((topic) => Number(topic.topic_id) === Number(topicId))?.name || ('Topic #' + topicId)
+        );
+        reviewDetails.append(element('p','muted','Topics: ' + (topicNames.join(', ') || 'None')));
+        for (const testCase of managed.test_cases || []) {
+          const item = element('article','review-test-case');
+          item.append(element('strong','', 'Test case ' + testCase.test_case_id +
+            (testCase.is_hidden ? ' · HIDDEN' : ' · SAMPLE')));
+          const inputHeading = element('span','review-test-label','Input');
+          const inputData = element('pre','review-test-data',testCase.input_data);
+          const outputHeading = element('span','review-test-label','Expected output');
+          const outputData = element('pre','review-test-data',testCase.expected_output);
+          item.append(inputHeading,inputData,outputHeading,outputData);
+          reviewDetails.append(item);
+        }
+        if (!(managed.test_cases || []).length) {
+          reviewDetails.append(element('p','muted','No test cases have been configured.'));
+        }
+      } catch (error) {
+        reviewDetails.append(element('p','error','Could not load test cases: ' + error.message));
+      }
       const comments = document.createElement('textarea');
       comments.rows = 3; comments.maxLength = 5000; comments.placeholder = 'Review comments for the Organizer…';
       comments.setAttribute('aria-label','Review comments for problem ' + problem.problem_id);
@@ -118,7 +145,7 @@ async function loadReviewQueue() {
         });
         actions.append(button);
       }
-      card.append(title,meta,statement,comments,actions);
+      card.append(title,meta,statement,reviewDetails,comments,actions);
       container.append(card);
     }
   } catch(error){container.append(element('p','error',error.message));}
