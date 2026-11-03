@@ -118,3 +118,38 @@
 .leaderboard-table th{color:#91a4c7;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
 .leaderboard-table td{color:#dce8fa}
 @media(max-width:700px){.contest-card{align-items:flex-start;flex-direction:column}.contest-card-actions{width:100%}.contest-card-actions button{flex:1}.contest-problem-row{align-items:flex-start;flex-direction:column}.contest-problem-row button{width:100%}}
+
+
+/* Contest schedules, setup and leaderboard */
+.contest-section{border:1px solid #263550;border-radius:18px;background:rgba(16,26,47,.9);padding:clamp(20px,4vw,30px);margin:16px 0}
+.contest-section h2{margin:0;font-size:clamp(24px,4vw,32px)}
+.contest-list{display:grid;gap:10px;margin-top:18px}
+.contest-card{display:flex;justify-content:space-between;align-items:center;gap:18px;border:1px solid #2b405e;border-radius:13px;padding:16px;background:#0b1427}
+.contest-card-main{min-width:0}
+.contest-card-heading{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.contest-card-heading h3{margin:0;font-size:15px}
+.contest-card-main>p{margin:8px 0 0;color:#b9c7dd;font-size:12px}
+.contest-card-main>p.muted{color:#879ab8;font-size:10px}
+.contest-card-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.contest-status{display:inline-flex;border-radius:99px;padding:4px 9px;border:1px solid #3b526f;color:#c8d5eb;font-size:9px;font-weight:800;letter-spacing:.08em}
+.contest-status.upcoming{border-color:#5d4d2b;color:#fcd34d}
+.contest-status.live{border-color:#24634f;color:#86efac}
+.contest-status.ended{border-color:#40516b;color:#94a3b8}
+.registered-label{color:#86efac;font-size:10px;font-weight:700}
+#contest-editor[hidden]{display:none}
+#contest-problem-ids{width:100%;border:1px solid #354765;border-radius:9px;background:#0b1427;color:#edf2ff;padding:9px;min-height:150px}
+#contest-problem-ids option{padding:6px}
+#contest-scoring-help{margin:0;color:#91a4c7;font-size:11px;line-height:1.6}
+.contest-dialog{width:min(860px,calc(100% - 28px));max-height:min(90vh,940px);overflow:auto;border:1px solid #354765;border-radius:18px;background:#101a2f;color:#edf2ff;padding:clamp(18px,4vw,30px);box-shadow:0 24px 80px #0009}
+.contest-dialog::backdrop{background:#020817cc;backdrop-filter:blur(4px)}
+.contest-rules-text{white-space:pre-wrap;color:#c5d2e6;font-size:13px;line-height:1.65}
+.contest-detail-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+.contest-detail-problems{display:grid;gap:9px}
+.contest-problem-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #2a405e;border-radius:10px;padding:12px;background:#0b1427}
+.contest-problem-row>div{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.contest-problem-row strong{font-size:12px}
+.leaderboard-table{width:100%;border-collapse:collapse;font-size:11px}
+.leaderboard-table th,.leaderboard-table td{text-align:left;padding:10px;border-bottom:1px solid #293954}
+.leaderboard-table th{color:#91a4c7;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.leaderboard-table td{color:#dce8fa}
+@media(max-width:700px){.contest-card{align-items:flex-start;flex-direction:column}.contest-card-actions{width:100%}.contest-card-actions button{flex:1}.contest-problem-row{align-items:flex-start;flex-direction:column}.contest-problem-row button{width:100%}}
