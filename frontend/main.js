@@ -128,6 +128,80 @@ async function toggleNotificationPanel() {
   await loadNotifications();
 }
 
+const WORKSPACE_VIEWS = {
+  Learner: [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'problems', label: 'Problem library' },
+    { id: 'contests', label: 'Contests' },
+    { id: 'support', label: 'Support' }
+  ],
+  Organizer: [
+    { id: 'problems', label: 'Problem management' },
+    { id: 'contests', label: 'Contests' },
+    { id: 'assessments', label: 'Assessments' }
+  ],
+  Reviewer: [{ id: 'review', label: 'Review queue' }],
+  Mentor: [{ id: 'mentoring', label: 'Learner feedback' }],
+  Support: [{ id: 'support', label: 'Support queue' }],
+  Judge: [{ id: 'judging', label: 'Contest reviews' }],
+  Moderator: [{ id: 'contests', label: 'Contest moderation' }],
+  Admin: [
+    { id: 'administration', label: 'Platform administration' },
+    { id: 'problems', label: 'Problem management' },
+    { id: 'contests', label: 'Contests' },
+    { id: 'assessments', label: 'Assessments' },
+    { id: 'review', label: 'Review queue' },
+    { id: 'support', label: 'Support' },
+    { id: 'judging', label: 'Contest reviews' },
+    { id: 'mentoring', label: 'Mentor feedback' }
+  ]
+};
+let activeWorkspaceView = null;
+
+function setWorkspaceView(viewId) {
+  const navigation = $('#workspace-navigation');
+  const available = [...navigation.querySelectorAll('[data-view-link]')].map(button => button.dataset.viewLink);
+  if (!available.includes(viewId)) return;
+  activeWorkspaceView = viewId;
+  document.querySelectorAll('[data-view]').forEach(section => {
+    section.hidden = section.dataset.view !== viewId;
+  });
+  navigation.querySelectorAll('[data-view-link]').forEach(button => {
+    const active = button.dataset.viewLink === viewId;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+  const activeButton = navigation.querySelector('[data-view-link="' + viewId + '"]');
+  $('#workspace-page-heading').textContent = activeButton?.textContent || 'Workspace';
+}
+
+function renderWorkspaceNavigation() {
+  const navigation = $('#workspace-navigation');
+  navigation.replaceChildren();
+  if (!currentUser) {
+    navigation.hidden = true;
+    document.querySelectorAll('[data-view]').forEach(section => {
+      section.hidden = section.dataset.view !== 'problems';
+    });
+    $('#workspace-page-heading').hidden = true;
+    return;
+  }
+  const views = WORKSPACE_VIEWS[currentUser.role_category] || [];
+  navigation.hidden = views.length === 0;
+  $('#workspace-page-heading').hidden = views.length === 0;
+  for (const view of views) {
+    const button = element('button', 'workspace-nav-link', view.label);
+    button.type = 'button';
+    button.dataset.viewLink = view.id;
+    button.addEventListener('click', () => setWorkspaceView(view.id));
+    navigation.append(button);
+  }
+  const preferred = views.some(view => view.id === activeWorkspaceView)
+    ? activeWorkspaceView
+    : (views[0]?.id || null);
+  if (preferred) setWorkspaceView(preferred);
+}
+
 function updateAccountUI() {
   const signedIn = Boolean(currentUser);
   $('#login-panel').hidden = signedIn;
