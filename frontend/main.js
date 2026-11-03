@@ -39,6 +39,7 @@ function updateAccountUI() {
     ? currentUser.name + ' · ' + currentUser.role_name
     : 'Not signed in';
   $('#new-button').hidden = !(signedIn && currentUser.role_category === 'Organizer');
+  $('#progress-panel').hidden = !(signedIn && currentUser.role_category === 'Learner');
   $('#show-inactive').disabled = !signedIn;
 }
 
@@ -368,6 +369,7 @@ async function refreshSubmission(problemId, submissionId, action) {
         ? prefix + ' could not be completed. ' + (item.execution_error || 'Please retry.')
         : prefix + ' finished: ' + (item.verdict_name || 'Completed') + '.';
       await loadSubmissionHistory(problemId);
+      await loadProgress();
       return;
     }
     $('#submission-status').textContent = item.execution_status === 'RUNNING'
@@ -434,6 +436,140 @@ async function setupSubmissionWorkspace(problemId) {
   await loadSubmissionHistory(problemId);
 }
 
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.floor(Math.max(0, Number(milliseconds) || 0) / 1000);
+  if (totalSeconds < 60) return totalSeconds + ' sec';
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) return minutes + ' min ' + seconds + ' sec';
+  return Math.floor(minutes / 60) + ' hr ' + (minutes % 60) + ' min';
+}
+
+function renderDailyActivity(days) {
+  const container = $('#daily-activity');
+  container.replaceChildren();
+  const max = Math.max(1, ...days.map((day) => Number(day.submissions) || 0));
+  for (const day of days) {
+    const item = document.createElement('div');
+    item.className = 'activity-day';
+    const bar = document.createElement('div');
+    bar.className = 'activity-bar';
+    const count = Number(day.submissions) || 0;
+    bar.style.height = Math.max(3, Math.round(count / max * 74)) + 'px';
+    if (count === 0) bar.classList.add('is-empty');
+    const date = new Date(day.activity_day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    item.title = date + ': ' + count + ' submissions, ' + (Number(day.accepted) || 0) + ' accepted';
+    item.setAttribute('aria-label', item.title);
+    const label = document.createElement('span');
+    label.textContent = Number(day.activity_day.slice(-2)) % 5 === 0 ? date : '';
+    item.append(bar, label);
+    container.append(item);
+  }
+}
+
+function renderTopicPerformance(topics) {
+  const container = $('#topic-performance');
+  container.replaceChildren();
+  if (!topics.length) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'Topic performance will appear after you submit solutions to tagged problems.';
+    container.append(empty);
+    return;
+  }
+  for (const topic of topics) {
+    const row = document.createElement('div');
+    row.className = 'topic-progress-row';
+    const heading = document.createElement('div');
+    heading.className = 'topic-progress-heading';
+    const name = document.createElement('strong');
+    name.textContent = topic.name;
+    const ratio = document.createElement('span');
+    ratio.textContent = topic.solved_problems + ' / ' + topic.attempted_problems + ' solved';
+    heading.append(name, ratio);
+    const track = document.createElement('div');
+    track.className = 'metric-track';
+    const fill = document.createElement('div');
+    fill.className = 'metric-fill';
+    const percent = topic.attempted_problems ? topic.solved_problems / topic.attempted_problems * 100 : 0;
+    fill.style.width = Math.max(0, Math.min(100, percent)) + '%';
+    track.append(fill);
+    row.append(heading, track);
+    container.append(row);
+  }
+}
+
+function renderLanguageUsage(languages) {
+  const container = $('#language-usage');
+  container.replaceChildren();
+  if (!languages.length) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'Language statistics will appear after your first submission.';
+    container.append(empty);
+    return;
+  }
+  for (const language of languages) {
+    const row = document.createElement('div');
+    row.className = 'language-usage-row';
+    const label = document.createElement('span');
+    label.textContent = language.name + ' ' + language.version;
+    const count = document.createElement('strong');
+    count.textContent = language.submissions + ' submissions';
+    row.append(label, count);
+    container.append(row);
+  }
+}
+
+function renderRecentActivity(items) {
+  const container = $('#recent-activity');
+  container.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'Your practice submissions will appear here.';
+    container.append(empty);
+    return;
+  }
+  for (const item of items) {
+    const row = document.createElement('div');
+    row.className = 'recent-progress-row';
+    const title = document.createElement('strong');
+    title.textContent = item.problem_title;
+    const meta = document.createElement('span');
+    const label = item.is_run_only ? 'Sample run' : 'Attempt ' + item.attempt_number;
+    meta.textContent = label + ' · ' + item.language_name + ' ' + item.language_version +
+      ' · ' + (item.verdict_name || item.execution_status) +
+      ' · ' + new Date(item.submitted_at).toLocaleString();
+    row.append(title, meta);
+    container.append(row);
+  }
+}
+
+async function loadProgress() {
+  if (!currentUser || currentUser.role_category !== 'Learner') return;
+  const status = $('#progress-status');
+  status.textContent = 'Refreshing your progress…';
+  try {
+    const payload = await api('/api/progress/me');
+    const summary = payload.summary;
+    $('#progress-solved').textContent = summary.solved_problems;
+    $('#progress-attempted').textContent = summary.attempted_problems;
+    $('#progress-acceptance').textContent = summary.acceptance_rate + '%';
+    $('#progress-streak').textContent = summary.current_streak + ' days';
+    $('#progress-total-submissions').textContent = summary.completed_submissions;
+    $('#progress-execution-time').textContent = formatDuration(summary.total_execution_time_ms);
+    $('#progress-active').textContent = summary.active_submissions;
+    renderDailyActivity(payload.daily_activity || []);
+    renderTopicPerformance(payload.topic_performance || []);
+    renderLanguageUsage(payload.language_usage || []);
+    renderRecentActivity(payload.recent_activity || []);
+    status.textContent = 'Updated just now. Metrics use practice submissions, not assessment attempts.';
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
 $('#login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   $('#login-button').disabled = true;
@@ -449,6 +585,7 @@ $('#login-form').addEventListener('submit', async (event) => {
     currentUser = result.user;
     $('#login-password').value = '';
     updateAccountUI();
+    await loadProgress();
     notify(
       result.passwordUpgraded
         ? 'Signed in. Legacy password hash upgraded to Argon2id.'
@@ -480,6 +617,7 @@ $('#logout-button').addEventListener('click', async () => {
 $('#new-button').addEventListener('click', () => openForm());
 $('#cancel-button').addEventListener('click', () => { $('#form-panel').hidden = true; });
 $('#detail-close').addEventListener('click', () => $('#problem-dialog').close());
+$('#progress-refresh').addEventListener('click', loadProgress);
 $('#run-samples').addEventListener('click', () => runOrSubmitCode('run'));
 $('#submit-code').addEventListener('click', () => runOrSubmitCode('submit'));
 $('#search').addEventListener('input', render);
@@ -522,4 +660,5 @@ $('#problem-form').addEventListener('submit', async (event) => {
   await loadCurrentUser();
   await loadTopics();
   await loadProblems();
+  await loadProgress();
 })();
