@@ -44,7 +44,7 @@ function updateAccountUI() {
     : 'Not signed in';
   $('#new-button').hidden = !(signedIn && currentUser.role_category === 'Organizer');
   $('#progress-panel').hidden = !(signedIn && currentUser.role_category === 'Learner');
-  $('#create-contest-button').hidden = !(signedIn && currentUser.role_category === 'Organizer');
+  $('#create-contest-button').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
   $('#show-inactive').disabled = !signedIn;
 }
 
@@ -151,7 +151,7 @@ function renderContests() {
     if (contest.is_registered) { const reg = document.createElement('span'); reg.className = 'registered-label'; reg.textContent = 'Registered'; actions.append(reg); }
     const view = document.createElement('button'); view.type = 'button'; view.textContent = 'View contest';
     view.addEventListener('click', () => openContestDetails(contest.contest_id)); actions.append(view);
-    const canEdit = currentUser?.role_category === 'Organizer' && Number(contest.organizer_id) === Number(currentUser.user_id) && contest.contest_status === 'UPCOMING';
+    const canEdit = currentUser && (currentUser.role_category === 'Admin' || (currentUser.role_category === 'Organizer' && Number(contest.organizer_id) === Number(currentUser.user_id))) && contest.contest_status === 'UPCOMING';
     if (canEdit) { const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Edit'; edit.addEventListener('click', () => openContestForm(contest.contest_id)); actions.append(edit); }
     card.append(main, actions); container.append(card);
   }
@@ -233,7 +233,7 @@ async function openContestDetails(contestId) {
     const results = await Promise.all([api('/api/contests/' + contestId), api('/api/contests/' + contestId + '/leaderboard')]);
     const detail = results[0]; const board = results[1]; activeContest = detail.contest;
     const c = activeContest;
-    c.is_organizer = currentUser?.role_category === 'Organizer' && Number(c.organizer_id) === Number(currentUser.user_id);
+    c.is_organizer = currentUser && (currentUser.role_category === 'Admin' || (currentUser.role_category === 'Organizer' && Number(c.organizer_id) === Number(currentUser.user_id)));
     $('#contest-detail-title').textContent = c.name; $('#contest-detail-status').textContent = c.contest_status;
     $('#contest-detail-meta').textContent = contestDate(c.start_time) + ' — ' + contestDate(c.end_time) + ' · ' + c.participant_count + ' participants';
     $('#contest-detail-rules').textContent = c.rules || 'No additional rules were provided.';
