@@ -50,7 +50,6 @@ function updateAccountUI() {
   $('#show-inactive').disabled = !signedIn;
   const canViewProgress = signedIn && currentUser.role_category === 'Learner';
   $('#progress-button').hidden = !canViewProgress;
-  if (!canViewProgress) $('#dashboard-panel').hidden = true;
 }
 
 function addTopicChips(container, assignedTopics) {
@@ -937,99 +936,6 @@ $('#registration-form').addEventListener('submit', async (event) => {
   }
 });
 
-function renderDashboard(payload) {
-  const summary = payload.summary || {};
-  $('#stat-solved').textContent = summary.solved_problems ?? 0;
-  $('#stat-attempted').textContent = (summary.attempted_problems ?? 0) + ' attempted';
-  $('#stat-success-rate').textContent = (summary.success_rate ?? 0) + '%';
-  $('#stat-accepted').textContent = (summary.accepted_submissions ?? 0) + ' accepted';
-  $('#stat-submissions').textContent = summary.total_submissions ?? 0;
-  $('#stat-evaluated').textContent = (summary.evaluated_submissions ?? 0) + ' evaluated';
-  $('#stat-streak').textContent = summary.current_streak ?? 0;
-
-  const topicContainer = $('#topic-performance');
-  topicContainer.replaceChildren();
-  const topicRows = payload.topic_performance || [];
-  if (!topicRows.length) {
-    const empty = document.createElement('p');
-    empty.className = 'muted';
-    empty.textContent = 'Solve or attempt a problem to see topic performance.';
-    topicContainer.append(empty);
-  }
-  for (const topic of topicRows) {
-    const row = document.createElement('div');
-    row.className = 'topic-performance-row';
-    const top = document.createElement('div');
-    top.className = 'topic-performance-heading';
-    const name = document.createElement('strong');
-    name.textContent = topic.name;
-    const count = document.createElement('span');
-    count.textContent = topic.solved_problems + ' / ' + topic.attempted_problems + ' solved';
-    top.append(name, count);
-    const track = document.createElement('div');
-    track.className = 'progress-track';
-    const fill = document.createElement('div');
-    fill.className = 'progress-fill';
-    const rate = Math.max(0, Math.min(100, Number(topic.solve_rate) || 0));
-    fill.style.width = rate + '%';
-    track.append(fill);
-    row.append(top, track);
-    topicContainer.append(row);
-  }
-
-  const activity = payload.activity || [];
-  const activityGrid = $('#activity-grid');
-  activityGrid.replaceChildren();
-  const maximum = Math.max(1, ...activity.map((day) => Number(day.submissions) || 0));
-  for (const day of activity) {
-    const cell = document.createElement('span');
-    const count = Number(day.submissions) || 0;
-    const level = count === 0 ? 0 : Math.min(4, Math.ceil((count / maximum) * 4));
-    cell.className = 'activity-cell';
-    cell.dataset.level = level;
-    cell.title = day.activity_date + ': ' + count + ' submissions';
-    cell.setAttribute('aria-label', cell.title);
-    activityGrid.append(cell);
-  }
-
-  const recent = $('#recent-submissions');
-  recent.replaceChildren();
-  const recentRows = payload.recent_submissions || [];
-  if (!recentRows.length) {
-    const empty = document.createElement('p');
-    empty.className = 'muted';
-    empty.textContent = 'No full submissions yet.';
-    recent.append(empty);
-  }
-  for (const item of recentRows) {
-    const row = document.createElement('div');
-    row.className = 'recent-submission-row';
-    const info = document.createElement('div');
-    const title = document.createElement('strong');
-    title.textContent = item.problem_title;
-    const meta = document.createElement('small');
-    meta.textContent = 'Attempt ' + item.attempt_number + ' · ' + item.language_name + ' ' + item.language_version +
-      ' · ' + new Date(item.submitted_at).toLocaleString();
-    info.append(title, meta);
-    const verdict = document.createElement('span');
-    verdict.className = 'recent-verdict';
-    verdict.textContent = item.verdict_name || item.execution_status;
-    row.append(info, verdict);
-    recent.append(row);
-  }
-}
-
-async function loadDashboard() {
-  $('#dashboard-message').textContent = 'Loading your progress…';
-  try {
-    const payload = await api('/api/dashboard/me');
-    renderDashboard(payload);
-    $('#dashboard-message').textContent = 'Progress is calculated from your saved full submissions. Sample runs are excluded.';
-  } catch (error) {
-    $('#dashboard-message').textContent = error.message;
-  }
-}
-
 $('#login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   $('#login-button').disabled = true;
@@ -1082,9 +988,9 @@ $('#new-button').addEventListener('click', () => openForm());
 $('#cancel-button').addEventListener('click', () => { $('#form-panel').hidden = true; });
 $('#detail-close').addEventListener('click', () => $('#problem-dialog').close());
 $('#progress-button').addEventListener('click', async () => {
-  const panel = $('#dashboard-panel');
+  const panel = $('#progress-panel');
   panel.hidden = !panel.hidden;
-  if (!panel.hidden) await loadDashboard();
+  if (!panel.hidden) await loadProgress();
 });
 $('#progress-refresh').addEventListener('click', loadProgress);
 $('#create-contest-button').addEventListener('click', () => openContestForm());
