@@ -11,8 +11,7 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 - Problem create, update and safe retirement.
 - Code editor with Run samples and Submit solution using asynchronous Judge0 execution.
 - Per-user submission history, test-result summaries, verdict, execution time and peak memory.
-- Learner progress dashboard with solved/attempted counts, success rate, practice streak, topic performance, last-30-days activity, and recent submissions.
-- Learner dashboard with solved/attempted counts, acceptance rate, practice streak, 30-day activity, topic performance, language usage and recent practice history.
+- Learner progress dashboard with solved/attempted counts, acceptance rate, practice streak, 30-day activity, topic performance, language usage, pending submissions and recent practice history.
 - Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
 - Organization-scoped company assessments, problem assignment, secure one-time candidate links, timed candidate coding workspace, candidate-only submission history, and post-assessment aggregate reports.
 - Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
@@ -70,7 +69,6 @@ On a successful legacy login, the server verifies SHA-256 and immediately replac
 - `GET /api/languages` — seeded language versions available on the configured Judge0 provider.
 - `POST /api/submissions` — asynchronous sample run (`action: run`) or full hidden-test submission (`action: submit`).
 - `GET /api/submissions` and `GET /api/submissions/:id` — signed-in user's own submission history and result details.
-- `GET /api/dashboard/me` — Learner-only progress summary, topic performance, practice streak, activity history and recent submissions.
 - `GET /api/progress/me` — signed-in Learner's aggregate practice dashboard, activity, topic and language metrics.
 - `GET /api/organizations` — organizations available to the signed-in Organizer/Admin.
 - `GET /api/assessments`, `POST /api/assessments`, `PUT /api/assessments/:id` — organization-scoped assessment management.
