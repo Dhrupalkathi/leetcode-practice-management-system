@@ -258,6 +258,33 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
         'SELECT assessment_id,title,start_time,end_time FROM public.assessment WHERE assessment_id=$1',[assessmentId]);
       if (!assessment.rowCount) return res.status(404).json({ error: 'Assessment not found.' });
       if (new Date(assessment.rows[0].end_time)>new Date()) return res.status(403).json({ error: 'Post-assessment reports are available after the assessment closes.' });
+      await pool.query(
+        `UPDATE public.invites i
+         SET status='Expired'
+         FROM public.assessment a
+         WHERE i.assessment_id=$1 AND a.assessment_id=i.assessment_id
+           AND i.status='Invited' AND a.end_time<=CURRENT_TIMESTAMP`,
+        [assessmentId]
+      );
+      await pool.query(
+        `UPDATE public.invites i
+         SET status='Completed',
+             score=CASE
+               WHEN (SELECT COUNT(*) FROM public.assessment_problem ap WHERE ap.assessment_id=i.assessment_id)=0 THEN 0
+               ELSE ROUND(
+                 100.0 * (
+                   SELECT COUNT(DISTINCT s.problem_id)
+                   FROM public.submission s
+                   WHERE s.assessment_id=i.assessment_id AND s.candidate_id=i.candidate_id
+                     AND s.is_run_only=FALSE AND s.execution_status='COMPLETED' AND s.verdict_id=1
+                 ) / (SELECT COUNT(*) FROM public.assessment_problem ap WHERE ap.assessment_id=i.assessment_id)
+               )::integer
+             END
+         FROM public.assessment a
+         WHERE i.assessment_id=$1 AND a.assessment_id=i.assessment_id
+           AND i.status='Started' AND a.end_time<=CURRENT_TIMESTAMP`,
+        [assessmentId]
+      );
       const result = await pool.query(
         `SELECT RANK() OVER (ORDER BY i.score DESC NULLS LAST, i.attempted_at ASC NULLS LAST, c.candidate_id)::integer AS rank,
                 c.candidate_id,c.name,c.email,i.status,i.invited_at,i.attempted_at,i.score,
