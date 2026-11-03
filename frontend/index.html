@@ -333,6 +333,34 @@
     </section>
 
     <section id="admin-panel" class="workspace-card" hidden>
+      <section class="admin-reports-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">PLATFORM ANALYTICS</p><h3>Platform overview</h3></div>
+          <button id="admin-reports-refresh" class="secondary" type="button">Refresh reports</button>
+        </div>
+        <p id="admin-reports-meta" class="muted">Aggregate platform activity and assessment reporting.</p>
+        <div id="admin-report-summary" class="admin-report-summary"></div>
+        <section class="workspace-subsection">
+          <div class="section-heading"><h4>Practice activity · last 14 days</h4></div>
+          <div id="admin-daily-activity" class="admin-daily-activity"></div>
+        </section>
+        <div class="admin-report-columns">
+          <section class="workspace-subsection">
+            <h4>Most attempted practice problems</h4>
+            <div id="admin-popular-problems" class="workspace-list"></div>
+          </section>
+          <section class="workspace-subsection">
+            <h4>Lowest acceptance rate · at least 5 attempts</h4>
+            <div id="admin-low-success-problems" class="workspace-list"></div>
+          </section>
+        </div>
+        <section class="workspace-subsection">
+          <h4>Company assessment activity</h4>
+          <div id="admin-assessment-activity" class="workspace-list"></div>
+        </section>
+      </section>
+      <section class="workspace-subsection">
+        <div class="section-heading"><div><p class="eyebrow">PLATFORM ADMINISTRATION</p><h3>User and role management</h3></div><button id="admin-users-refresh" class="secondary" type="button">Refresh users</button></div>
       <div class="section-heading"><div><p class="eyebrow">PLATFORM ADMINISTRATION</p><h3>User and role management</h3></div><button id="admin-users-refresh" class="secondary" type="button">Refresh users</button></div>
       <form id="admin-user-search" class="workspace-form compact-form">
         <label>Search name or email<input id="admin-user-query" type="search"></label>
@@ -343,6 +371,7 @@
       <section class="workspace-subsection">
         <div class="section-heading"><h4>Audit history</h4><button id="admin-audit-refresh" class="secondary" type="button">Refresh audit log</button></div>
         <div id="admin-audit-list" class="workspace-list"></div>
+      </section>
       </section>
     </section>
     <p id="workspace-message" class="notice" role="status" aria-live="polite"></p>
