@@ -15,6 +15,7 @@
     <div><p class="eyebrow">TEAM 24 · MC212 DBMS</p><h1>Practice Platform</h1></div>
     <div class="account-area">
       <span id="account-status" class="phase-tag">Not signed in</span>
+      <button id="progress-button" class="secondary" type="button" hidden>My progress</button>
       <button id="logout-button" class="secondary" type="button" hidden>Log out</button>
     </div>
   </header>
@@ -48,6 +49,33 @@
     <p class="login-hint">For local seeded demo accounts only, the original lab generator used password pw followed by the user ID. Never use these demo credentials outside this local project.</p>
   </section>
 
+  <section id="dashboard-panel" class="dashboard-panel" hidden>
+    <div class="section-heading">
+      <div><p class="eyebrow">LEARNER OVERVIEW</p><h2>Your progress</h2></div>
+      <span class="muted">Calculated from evaluated submissions</span>
+    </div>
+    <div class="stat-grid">
+      <article class="stat-card"><span>Problems solved</span><strong id="stat-solved">—</strong><small id="stat-attempted">— attempted</small></article>
+      <article class="stat-card"><span>Submission success</span><strong id="stat-success-rate">—</strong><small id="stat-accepted">— accepted</small></article>
+      <article class="stat-card"><span>Total submissions</span><strong id="stat-submissions">—</strong><small id="stat-evaluated">— evaluated</small></article>
+      <article class="stat-card"><span>Current practice streak</span><strong id="stat-streak">—</strong><small>consecutive active days</small></article>
+    </div>
+    <section class="dashboard-block">
+      <h3>Topic performance</h3>
+      <p class="muted">Solved problems compared with the problems you have attempted in each topic.</p>
+      <div id="topic-performance" class="topic-performance"><p class="muted">Open My progress to load your statistics.</p></div>
+    </section>
+    <section class="dashboard-block">
+      <h3>Last 30 days</h3>
+      <p class="muted">Each cell represents one day with a full submission.</p>
+      <div id="activity-grid" class="activity-grid"></div>
+    </section>
+    <section class="dashboard-block">
+      <h3>Recent submissions</h3>
+      <div id="recent-submissions" class="recent-submissions"></div>
+    </section>
+    <p id="dashboard-message" class="notice" role="status" aria-live="polite"></p>
+  </section>
   <section class="intro-card">
     <div class="section-heading">
       <div><p class="eyebrow">PROBLEM LIBRARY</p><h2>Practice. Improve. Repeat.</h2></div>
