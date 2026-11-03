@@ -375,6 +375,9 @@ async function openContestForm(contestId = null) {
       const payload = await api('/api/contests/' + contestId); const c = payload.contest;
       $('#contest-name').value = c.name; $('#contest-start').value = toDateTimeLocal(c.start_time);
       $('#contest-end').value = toDateTimeLocal(c.end_time); $('#contest-rules').value = c.rules || '';
+      $('#contest-points').value = c.points_per_problem ?? 100;
+      $('#contest-wrong-penalty').value = c.wrong_attempt_penalty_minutes ?? 5;
+      $('#contest-time-penalty').checked = Boolean(c.time_penalty_enabled);
       populateContestProblemOptions(payload.problems.map((p) => Number(p.problem_id)));
     } catch (error) { $('#contest-form-error').textContent = error.message; return; }
   }
@@ -428,6 +431,11 @@ async function openContestDetails(contestId) {
     $('#contest-detail-title').textContent = c.name; $('#contest-detail-status').textContent = c.contest_status;
     $('#contest-detail-meta').textContent = contestDate(c.start_time) + ' — ' + contestDate(c.end_time) + ' · ' + c.participant_count + ' participants';
     $('#contest-detail-rules').textContent = c.rules || 'No additional rules were provided.';
+    $('#contest-scoring-summary').textContent =
+      'Scoring: ' + c.points_per_problem + ' points per solved problem; ' +
+      c.wrong_attempt_penalty_minutes + ' penalty minutes per wrong full submission before acceptance' +
+      (c.time_penalty_enabled ? ', plus elapsed minutes to accepted solutions.' : '.') +
+      ' Higher score ranks first, then lower penalty.';
     const register = $('#contest-register-button');
     register.hidden = !(currentUser?.role_category === 'Learner' && c.contest_status === 'UPCOMING' && !c.is_registered);
     $('#contest-action-message').textContent = c.is_registered ? 'You are registered for this contest.' :
@@ -1033,7 +1041,16 @@ $('#contest-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const contestId = $('#contest-id').value;
   const problemIds = Array.from($('#contest-problem-ids').selectedOptions).map((option) => Number(option.value));
-  const body = { name: $('#contest-name').value, start_time: $('#contest-start').value, end_time: $('#contest-end').value, rules: $('#contest-rules').value, problem_ids: problemIds };
+  const body = {
+    name: $('#contest-name').value,
+    start_time: $('#contest-start').value,
+    end_time: $('#contest-end').value,
+    rules: $('#contest-rules').value,
+    problem_ids: problemIds,
+    points_per_problem: Number($('#contest-points').value),
+    wrong_attempt_penalty_minutes: Number($('#contest-wrong-penalty').value),
+    time_penalty_enabled: $('#contest-time-penalty').checked
+  };
   $('#contest-save').disabled = true; $('#contest-form-error').textContent = '';
   try {
     const result = await api(contestId ? '/api/contests/' + contestId : '/api/contests', {
