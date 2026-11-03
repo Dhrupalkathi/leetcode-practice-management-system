@@ -163,6 +163,30 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **How:** Use both the problem form and direct API requests with invalid payloads.
 - **Expected:** Invalid requests return validation errors and do not write invalid rows.
 
+### C-10 — Assign topics while authoring
+- **What:** Create or edit a problem with one or more topic associations.
+- **Why:** Topic classification is required for discovery and topic-based learner analytics.
+- **How:** In the Organizer editor, select multiple topics and save; compare the selected topic IDs with `problem_topic` rows.
+- **Expected:** The selected topics are stored against the problem; missing, duplicate, or nonexistent topic IDs are rejected.
+
+### C-11 — Create public sample and hidden test cases
+- **What:** Add multiple test cases and mark each as sample or hidden.
+- **Why:** Learners need public examples, while final judging needs confidential hidden cases.
+- **How:** In the Organizer editor, add at least one test case, enter input and expected output, select the Hidden from learners option for some cases, and save.
+- **Expected:** Each case is stored with an ordered test-case ID and its `is_hidden` flag; public problem details include only sample cases.
+
+### C-12 — Preserve test data after submissions exist
+- **What:** Attempt to modify test-case input, expected output, visibility, or count after a problem has submission history.
+- **Why:** Changing test cases would make historical verdicts unreliable and undermine the auditability of prior attempts.
+- **How:** Open the editor for a problem with existing submissions and inspect the lock notice; attempt to alter test data through a direct API request as well.
+- **Expected:** The UI renders existing test cases read-only, and the API rejects changed test cases with a conflict response. Problem statement and topic changes can still be resubmitted for Reviewer approval.
+
+### C-13 — Reviewer inspects sample and hidden tests
+- **What:** Inspect all test cases and topic associations for a problem awaiting review.
+- **Why:** Reviewer duties include checking problem statements and test cases before publication.
+- **How:** Sign in as Reviewer, open the review queue, expand Inspect topics and all test cases, and review the case input/output and sample/hidden classification.
+- **Expected:** Authorized Reviewer/Admin accounts can inspect all cases; ordinary Learner and Guest accounts cannot access the management endpoint or hidden data.
+
 ## D. Submission and code execution
 
 ### D-01 — Available programming languages
