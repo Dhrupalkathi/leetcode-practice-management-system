@@ -463,6 +463,7 @@ async function openAssessmentDetails(assessmentId) {
     $('#assessment-detail-meta').textContent=formatAssessmentDate(a.start_time)+' — '+formatAssessmentDate(a.end_time)+' · '+a.time_limit_minutes+' minute limit · '+(a.organization_name||'Organization');
     renderAssessmentProblems(result.problems||[]);
     renderAssessmentCandidates(result.candidates||[]);
+    await loadAssessmentSuspiciousActivity(assessmentId);
     const canInvite=a.assessment_status==='UPCOMING';
     $('#assessment-invite-form').hidden=!canInvite;
     $('#assessment-invitation-link').hidden=true;
@@ -470,6 +471,35 @@ async function openAssessmentDetails(assessmentId) {
     if(a.assessment_status==='ENDED')await loadAssessmentReport(assessmentId);
     const dialog=$('#assessment-dialog');if(!dialog.open)dialog.showModal();
   }catch(error){notify(error.message,'error');}
+}
+
+async function loadAssessmentSuspiciousActivity(assessmentId) {
+  const container=$('#assessment-suspicious-activity');container.replaceChildren();
+  try {
+    const result=await api('/api/assessments/'+assessmentId+'/suspicious-activity');
+    if(!result.activities.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='No activity indicators have been recorded for this assessment.';container.append(empty);return;}
+    for(const item of result.activities){
+      const card=document.createElement('article');card.className='workspace-item';
+      const title=document.createElement('h4');title.textContent=item.event_type.replaceAll('_',' ')+' · '+item.candidate_name;
+      const meta=document.createElement('p');meta.className='muted';meta.textContent=item.candidate_email+' · '+new Date(item.detected_at).toLocaleString();
+      const context=document.createElement('p');context.className='workspace-item-text';context.textContent=JSON.stringify(item.metadata||{});
+      const note=document.createElement('textarea');note.rows=2;note.maxLength=5000;note.placeholder='Human review notes…';note.value=item.review_notes||'';
+      const status=document.createElement('select');
+      for(const value of ['PENDING','REVIEWED','DISMISSED']){const option=document.createElement('option');option.value=value;option.textContent=value;option.selected=value===item.review_status;status.append(option);}
+      const save=document.createElement('button');save.type='button';save.textContent='Save review';
+      save.addEventListener('click',async()=>{
+        save.disabled=true;
+        try{
+          await api('/api/assessments/'+assessmentId+'/suspicious-activity/'+item.activity_id,{method:'PATCH',body:JSON.stringify({review_status:status.value,review_notes:note.value})});
+          $('#assessment-detail-meta').textContent=$('#assessment-detail-meta').textContent;
+          await loadAssessmentSuspiciousActivity(assessmentId);
+        }catch(error){notify(error.message,'error');save.disabled=false;}
+      });
+      const actions=document.createElement('div');actions.className='workspace-actions';actions.append(status,save);
+      card.append(title,meta,context,note,actions);container.append(card);
+    }
+    if(result.notice)container.prepend(Object.assign(document.createElement('p'),{className:'muted',textContent:result.notice}));
+  }catch(error){container.append(Object.assign(document.createElement('p'),{className:'error',textContent:error.message}));}
 }
 
 async function loadAssessmentReport(assessmentId) {
@@ -1292,6 +1322,7 @@ $('#assessment-close').addEventListener('click',()=>$('#assessment-dialog').clos
 $('#assessment-invite-form').addEventListener('submit',createCandidateInvitation);
 $('#copy-invitation-link').addEventListener('click',copyAssessmentInviteLink);
 $('#load-assessment-report').addEventListener('click',()=>{if(activeAssessment)loadAssessmentReport(activeAssessment.assessment_id);});
+$('#refresh-suspicious-activity').addEventListener('click',()=>{if(activeAssessment)loadAssessmentSuspiciousActivity(activeAssessment.assessment_id);});
 $('#assessment-form').addEventListener('submit',async(event)=>{
   event.preventDefault();
   const id=$('#assessment-id').value;
