@@ -16,9 +16,34 @@
     <div class="account-area">
       <span id="account-status" class="phase-tag">Not signed in</span>
       <button id="progress-button" class="secondary" type="button" hidden>My progress</button>
+      <button id="profile-button" class="secondary" type="button" hidden>Profile</button>
       <button id="logout-button" class="secondary" type="button" hidden>Log out</button>
     </div>
   </header>
+
+  <section id="profile-panel" class="workspace-card profile-panel" hidden>
+    <div class="section-heading">
+      <div><p class="eyebrow">ACCOUNT SETTINGS</p><h2>My profile</h2></div>
+      <button id="profile-close" class="secondary" type="button">Close</button>
+    </div>
+    <form id="profile-form" class="profile-form">
+      <label>Full name<input id="profile-name" maxlength="100" required></label>
+      <label>Email address<input id="profile-email" type="email" maxlength="120" required></label>
+      <label id="preferred-language-field">Preferred programming language<select id="preferred-language"><option value="">No preference</option></select></label>
+      <div class="form-actions"><button id="profile-save" type="submit">Save profile</button><span id="profile-error" class="error" role="alert"></span></div>
+    </form>
+    <section class="workspace-subsection profile-password-section">
+      <h3>Change password</h3>
+      <form id="profile-password-form" class="profile-form">
+        <label>Current password<input id="profile-current-password" type="password" autocomplete="current-password" maxlength="1024" required></label>
+        <label>New password<input id="profile-new-password" type="password" autocomplete="new-password" minlength="10" maxlength="1024" required></label>
+        <label>Confirm new password<input id="profile-confirm-password" type="password" autocomplete="new-password" minlength="10" maxlength="1024" required></label>
+        <div class="form-actions"><button id="profile-password-save" type="submit">Update password</button><span id="profile-password-error" class="error" role="alert"></span></div>
+      </form>
+      <p class="muted">Changing your password ends other active sessions for this account.</p>
+    </section>
+    <p id="profile-status" class="notice" role="status" aria-live="polite"></p>
+  </section>
 
   <section id="login-panel" class="intro-card login-card">
     <p class="eyebrow">ACCOUNT ACCESS</p>
