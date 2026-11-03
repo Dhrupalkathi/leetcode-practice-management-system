@@ -237,3 +237,37 @@
 .signup-details[open] summary{margin-bottom:6px}
 .signup-form{margin-top:12px}
 .signup-form .wide{grid-column:1/-1}
+
+
+/* Learner progress dashboard */
+.dashboard-panel[hidden]{display:none}
+.dashboard-panel{border:1px solid #263550;border-radius:18px;background:rgba(16,26,47,.94);padding:clamp(20px,4vw,32px);margin-bottom:16px}
+.dashboard-panel h2{margin:0;font-size:clamp(23px,4vw,32px);letter-spacing:-.04em}
+.stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-top:22px}
+.stat-card{display:flex;flex-direction:column;gap:7px;min-height:116px;padding:16px;border:1px solid #2c405d;border-radius:13px;background:#0b1427}
+.stat-card span{color:#91a4c7;font-size:11px}
+.stat-card strong{color:#e7fff5;font-size:28px;letter-spacing:-.04em}
+.stat-card small{color:#8194b4;font-size:10px}
+.dashboard-block{margin-top:24px;padding-top:18px;border-top:1px solid #293954}
+.dashboard-block h3{margin:0 0 7px;font-size:15px}
+.topic-performance{display:grid;gap:15px;margin-top:16px}
+.topic-performance-row{min-width:0}
+.topic-performance-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:7px}
+.topic-performance-heading strong{font-size:12px}
+.topic-performance-heading span{color:#91a4c7;font-size:10px}
+.progress-track{height:8px;border-radius:99px;overflow:hidden;background:#24334d}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#4fbf9a,#a7f3d0)}
+.activity-grid{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));gap:5px;margin-top:14px}
+.activity-cell{aspect-ratio:1;border:1px solid #2d405a;border-radius:4px;background:#142239}
+.activity-cell[data-level="1"]{background:#244b47}
+.activity-cell[data-level="2"]{background:#2f7965}
+.activity-cell[data-level="3"]{background:#4aa787}
+.activity-cell[data-level="4"]{background:#a7f3d0}
+.recent-submissions{display:grid;gap:0;margin-top:10px}
+.recent-submission-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid #293954}
+.recent-submission-row div{display:grid;gap:4px;min-width:0}
+.recent-submission-row strong{font-size:12px;overflow-wrap:anywhere}
+.recent-submission-row small{color:#8194b4;font-size:10px}
+.recent-verdict{color:#b9e8d7;font-size:10px;font-weight:800;text-align:right}
+@media(max-width:850px){.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.stat-grid{grid-template-columns:1fr 1fr}.stat-card{min-height:100px;padding:12px}.stat-card strong{font-size:23px}.activity-grid{gap:3px}.recent-submission-row{align-items:flex-start;flex-direction:column}.recent-verdict{text-align:left}}
