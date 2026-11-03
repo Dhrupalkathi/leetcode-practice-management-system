@@ -1,7 +1,6 @@
 const express = require('express');
 const crypto = require('node:crypto');
 const { listAvailableLanguages } = require('./judge0');
-const { processSubmission } = require('./submission-routes');
 
 function secondsRemaining(invite) {
   if (invite.status !== 'Started' || !invite.attempted_at) return 0;
@@ -247,19 +246,7 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
         await client.query('COMMIT');
       } catch(error){ await client.query('ROLLBACK');throw error; }
       finally { client.release(); }
-      setImmediate(()=>{
-        processSubmission(pool,{
-          submission_id:submission.submission_id,code:sourceCode,candidate_id:invite.candidate_id,
-          user_id:null,contest_id:null,assessment_id:invite.assessment_id
-        },testResult.rows,language).catch(async workerError=>{
-          console.error('Candidate execution worker failed:',workerError.message);
-          try { await pool.query(
-            `UPDATE public.submission SET execution_status='FAILED',
-              execution_error='The execution service could not complete this request. Please retry.'
-             WHERE submission_id=$1`,[submission.submission_id]);
-          } catch(databaseError){ console.error('Could not persist candidate execution failure:',databaseError.message); }
-        });
-      });
+      // The shared PostgreSQL submission workers will claim this PENDING candidate job.
       res.status(202).json({ submission_id:submission.submission_id,attempt_number:submission.attempt_number,
         submitted_at:submission.submitted_at,execution_status:'PENDING',is_run_only:action==='run' });
     } catch(error){ next(error); }
