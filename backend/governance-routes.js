@@ -544,6 +544,9 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
              FROM public.submission
              WHERE submitted_at >= CURRENT_DATE - INTERVAL '13 days'
                AND submitted_at < CURRENT_DATE + INTERVAL '1 day'
+               AND user_id IS NOT NULL
+               AND assessment_id IS NULL
+               AND contest_id IS NULL
              GROUP BY submitted_at::date
            )
            SELECT calendar.activity_day,
