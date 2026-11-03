@@ -117,6 +117,66 @@
     <div id="problem-list" class="problem-list"><p class="empty">Loading problems…</p></div>
   </section>
 
+  <section id="contest-section" class="contest-section">
+    <div class="section-heading">
+      <div><p class="eyebrow">COMPETITIVE PROGRAMMING</p><h2>Contests</h2></div>
+      <button id="create-contest-button" type="button" hidden>＋ Create contest</button>
+    </div>
+    <p class="intro-copy">Register for scheduled contests, solve assigned problems during the live window, and follow the leaderboard.</p>
+    <div id="contest-list" class="contest-list"><p class="empty">Loading contests…</p></div>
+  </section>
+
+  <section id="contest-editor" class="form-panel" hidden>
+    <div class="section-heading">
+      <div><p class="eyebrow">CONTEST SETUP</p><h2 id="contest-form-title">Create a contest</h2></div>
+      <button id="contest-cancel" class="secondary" type="button">Close</button>
+    </div>
+    <form id="contest-form">
+      <input id="contest-id" type="hidden">
+      <label class="wide">Contest name<input id="contest-name" maxlength="100" required></label>
+      <label>Start time<input id="contest-start" type="datetime-local" required></label>
+      <label>End time<input id="contest-end" type="datetime-local" required></label>
+      <label class="wide">Rules<textarea id="contest-rules" rows="3" placeholder="Add contest instructions and rules…"></textarea></label>
+      <label class="wide">Select problems
+        <select id="contest-problem-ids" multiple size="7" required aria-describedby="contest-scoring-help"></select>
+      </label>
+      <p id="contest-scoring-help" class="muted wide">Default scoring: 100 points per accepted problem. Each wrong full submission before acceptance adds 5 penalty points. Higher score ranks first, then lower penalty.</p>
+      <div class="form-actions">
+        <button id="contest-save" type="submit">Save contest</button>
+        <span id="contest-form-error" class="error" role="alert"></span>
+      </div>
+    </form>
+  </section>
+
+  <dialog id="contest-dialog" class="contest-dialog" aria-labelledby="contest-detail-title">
+    <div class="dialog-header">
+      <div>
+        <p id="contest-detail-status" class="eyebrow"></p>
+        <h2 id="contest-detail-title">Contest</h2>
+        <p id="contest-detail-meta" class="muted"></p>
+      </div>
+      <button id="contest-close" class="secondary" type="button">Close</button>
+    </div>
+    <section class="detail-section">
+      <h3>Rules</h3>
+      <p id="contest-detail-rules" class="contest-rules-text"></p>
+      <p class="muted">Scoring: 100 points per solved problem; 5 penalty points for each wrong full submission made before the first accepted solution. Leaderboard sorts by score, then penalty.</p>
+      <div class="contest-detail-actions">
+        <button id="contest-register-button" type="button" hidden>Register for contest</button>
+        <button id="contest-edit-button" class="secondary" type="button" hidden>Edit contest</button>
+      </div>
+      <p id="contest-action-message" class="notice" role="status" aria-live="polite"></p>
+    </section>
+    <section class="detail-section">
+      <h3>Contest problems</h3>
+      <div id="contest-detail-problems" class="contest-detail-problems"></div>
+    </section>
+    <section class="detail-section">
+      <h3>Leaderboard</h3>
+      <div id="contest-leaderboard" class="contest-leaderboard"></div>
+    </section>
+  </dialog>
+
   <footer>Local development build · PostgreSQL-backed sessions · Argon2id password migration · Topic-aware problem discovery.</footer>
 </main>
 
