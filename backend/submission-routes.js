@@ -26,25 +26,39 @@ function metricMilliseconds(value) {
 async function recalculateContestRegistration(pool, contestId, userId) {
   if (!contestId || !userId) return;
   await pool.query(
-    `WITH first_accept AS (
-       SELECT problem_id, MIN(submitted_at) AS accepted_at
+    `WITH settings AS (
+       SELECT start_time,points_per_problem,wrong_attempt_penalty_minutes,time_penalty_enabled
+       FROM public.contest WHERE contest_id=$1
+     ), first_accept AS (
+       SELECT problem_id,MIN(submitted_at) AS accepted_at
        FROM public.submission
        WHERE contest_id=$1 AND user_id=$2 AND is_run_only=FALSE
          AND execution_status='COMPLETED' AND verdict_id=1
        GROUP BY problem_id
-     ), score AS (
-       SELECT COUNT(*)::integer * 100 AS points FROM first_accept
-     ), penalty AS (
-       SELECT COUNT(*)::integer * 5 AS penalty_points
-       FROM public.submission s
-       JOIN first_accept fa ON fa.problem_id=s.problem_id
-       WHERE s.contest_id=$1 AND s.user_id=$2 AND s.is_run_only=FALSE
-         AND s.execution_status='COMPLETED' AND s.verdict_id<>1
-         AND s.submitted_at < fa.accepted_at
+     ), per_problem AS (
+       SELECT fa.problem_id,fa.accepted_at,
+              COUNT(s.submission_id) FILTER (
+                WHERE s.verdict_id<>1 AND s.submitted_at<fa.accepted_at
+              )::integer AS wrong_attempts
+       FROM first_accept fa
+       LEFT JOIN public.submission s
+         ON s.contest_id=$1 AND s.user_id=$2 AND s.problem_id=fa.problem_id
+        AND s.is_run_only=FALSE AND s.execution_status='COMPLETED'
+       GROUP BY fa.problem_id,fa.accepted_at
+     ), totals AS (
+       SELECT
+         (COUNT(*)::integer * MAX(cfg.points_per_problem))::integer AS score,
+         COALESCE(SUM(
+           pp.wrong_attempts * cfg.wrong_attempt_penalty_minutes +
+           CASE WHEN cfg.time_penalty_enabled THEN
+             GREATEST(0,FLOOR(EXTRACT(EPOCH FROM (pp.accepted_at-cfg.start_time))/60)::integer)
+           ELSE 0 END
+         ),0)::integer AS penalty
+       FROM per_problem pp CROSS JOIN settings cfg
      )
      UPDATE public.contest_registration cr
-     SET score=score.points, penalty=penalty.penalty_points
-     FROM score, penalty
+     SET score=totals.score,penalty=totals.penalty
+     FROM totals
      WHERE cr.contest_id=$1 AND cr.learner_id=$2`,
     [contestId,userId]
   );
