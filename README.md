@@ -8,7 +8,7 @@ A LeetCode-style programming practice and technical-assessment platform backed b
 
 - **Accounts and roles:** seeded-user login, automatic legacy SHA-256-to-Argon2id migration, self-service Learner L1 registration, profile/email updates, Learner preferred-language settings, Argon2id password changes with other-session invalidation, PostgreSQL-backed sessions, and Admin account/role controls.
 - **Problem library:** title search, difficulty/topic filtering, problem detail pages, public sample cases, and hidden-test confidentiality.
-- **Problem lifecycle:** Organizer create/edit/retire with topic tagging, public sample and hidden test-case authoring, immutable test data after submissions exist, Reviewer inspection/approval, changes-requested and rejection decisions, publication status and review history.
+- **Problem lifecycle:** Organizer create/edit/retire with topic tagging, public sample and hidden test-case authoring, immutable test data after submissions exist, Reviewer inspection/approval, changes-requested and rejection decisions, publication status and review history. Admins can also create problems by assigning an active Organizer owner.
 - **Code editor and judge:** supported-language selector, Run samples, Submit solution, asynchronous Judge0 execution, verdicts, per-test outcomes, runtime/memory metrics and personal submission history.
 - **Learner progress:** solved/attempted counts, acceptance rate, streak, daily activity, topic performance, language usage and recent practice.
 - **Contests:** schedule, Organizer/Admin setup, Moderator problem-set management, Learner registration, contest-linked submissions, configurable score/penalty and leaderboard, plus Judge result reviews.
@@ -73,7 +73,7 @@ On the first successful legacy login, the application verifies SHA-256 and upgra
 - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 - `GET /api/profile`, `PATCH /api/profile`, `POST /api/profile/password` — self-service profile, preferred language and password management.
 - `GET /api/topics`, `GET /api/problems`, `GET /api/problems/:id`.
-- `POST /api/problems`, `PUT /api/problems/:id`, `PATCH /api/problems/:id/retire` — Organizer content lifecycle.
+- `POST /api/problems`, `PUT /api/problems/:id`, `PATCH /api/problems/:id/retire` — Organizer content lifecycle; Admins can create with an explicit active Organizer owner.
 - `GET /api/problems/review-queue`, `GET /api/problems/:id/reviews`, `POST /api/problems/:id/reviews` — Reviewer/Admin governance.
 
 **Submissions and learner progress**
