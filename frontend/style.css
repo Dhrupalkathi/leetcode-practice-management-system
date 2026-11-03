@@ -172,3 +172,14 @@
 .notification-meta{color:#8194b4;font-size:10px;text-transform:capitalize}
 .notification-mark-read{justify-self:start;padding:7px 10px;font-size:10px}
 @media(max-width:700px){.notification-panel-actions{width:100%}.notification-panel-actions button{flex:1}}
+
+
+/* Role-aware application navigation */
+.workspace-navigation{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 10px;padding:9px;border:1px solid #263a57;border-radius:13px;background:rgba(11,20,39,.88)}
+.workspace-navigation[hidden],.workspace-page-heading[hidden]{display:none}
+.workspace-nav-link{padding:10px 13px;border:1px solid transparent;border-radius:8px;background:transparent;color:#aebed5;font-size:12px;font-weight:750}
+.workspace-nav-link:hover{background:#1b2d47;color:#edf2ff}
+.workspace-nav-link.is-active{border-color:#456b66;background:#18362f;color:#bff5dc}
+.workspace-page-heading{margin:18px 2px 14px;color:#edf2ff;font-size:clamp(22px,3vw,29px);font-weight:800;letter-spacing:-.035em}
+[data-view][hidden]{display:none!important}
+@media(max-width:700px){.workspace-navigation{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-nav-link{white-space:normal;text-align:left}}
