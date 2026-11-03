@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Database connectivity setup for the LeetCode-style practice platform">
-  <title>Practice Platform | Setup Check</title>
+  <meta name="description" content="Team 24 programming practice platform">
+  <title>Practice Platform | Problem Management</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
 </head>
@@ -12,35 +12,44 @@
   <main class="page-shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">LC</div>
-      <div>
-        <p class="eyebrow">TEAM 24 · MC212 DBMS</p>
-        <h1>Practice Platform</h1>
-      </div>
-      <span class="phase-tag">Phase 1 · Setup</span>
+      <div><p class="eyebrow">TEAM 24 · MC212 DBMS</p><h1>Practice Platform</h1></div>
+      <span class="phase-tag">Phase 2 · Problem management</span>
     </header>
-
     <section class="intro-card">
-      <p class="eyebrow">DATABASE CONNECTIVITY</p>
-      <h2>Connect the application to PostgreSQL</h2>
-      <p class="intro-copy">This first step verifies the path from the browser to the Express backend and from the backend to the existing <code>leetcode</code> database.</p>
-      <div class="actions">
-        <button id="check-button" type="button">Test database connection</button>
-        <span id="status" class="status" role="status" aria-live="polite">Not checked yet</span>
+      <div class="section-heading"><div><p class="eyebrow">PROBLEM LIBRARY</p><h2>Practice. Improve. Repeat.</h2></div>
+        <button id="new-button" type="button">＋ New problem</button></div>
+      <p class="intro-copy">Browse and manage the existing problem collection. Retiring a problem preserves its submissions and related records.</p>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search problem title…" aria-label="Search problems">
+        <select id="difficulty-filter" aria-label="Filter by difficulty"><option value="">All difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
+        <label class="toggle"><input id="show-inactive" type="checkbox"> Show retired</label>
       </div>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
     </section>
-
-    <section class="details-grid" aria-label="Application layers">
-      <article class="detail-card"><span class="number">01</span><h3>Frontend</h3><p>HTML and browser JavaScript send a request using <code>fetch()</code>.</p></article>
-      <article class="detail-card"><span class="number">02</span><h3>Backend</h3><p>Express receives the request and uses the server-side PostgreSQL driver.</p></article>
-      <article class="detail-card"><span class="number">03</span><h3>Database</h3><p>PostgreSQL answers the test query. The browser never connects to the database directly.</p></article>
+    <section id="form-panel" class="form-panel" hidden>
+      <div class="section-heading"><div><p class="eyebrow">PROBLEM EDITOR</p><h2 id="form-title">Create a problem</h2></div><button id="cancel-button" class="secondary" type="button">Close</button></div>
+      <form id="problem-form">
+        <input id="problem-id" type="hidden">
+        <label>Title<input id="title" name="title" maxlength="200" required></label>
+        <label>Difficulty<select id="difficulty" name="difficulty" required><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option></select></label>
+        <label class="wide">Problem statement<textarea id="problem-statement" name="problem_statement" rows="5" required></textarea></label>
+        <label>Input format<textarea id="input-format" name="input_format" rows="3" required></textarea></label>
+        <label>Output format<textarea id="output-format" name="output_format" rows="3" required></textarea></label>
+        <label class="wide">Constraints (optional)<textarea id="constraints" name="constraints" rows="2"></textarea></label>
+        <div class="form-actions"><button id="save-button" type="submit">Save problem</button><span id="form-error" class="error" role="alert"></span></div>
+      </form>
     </section>
-
-    <section class="result-card">
-      <h3>Connection result</h3>
-      <pre id="result" class="result-output">Waiting for the connection test…</pre>
+    <section class="list-section">
+      <div class="list-heading"><div><p class="eyebrow">DATABASE RECORDS</p><h2>Problems <span id="count" class="count">—</span></h2></div><span class="muted">PostgreSQL · leetcode</span></div>
+      <div id="problem-list" class="problem-list"><p class="empty">Loading problems…</p></div>
     </section>
-
-    <footer>Local development only · No CRUD routes or code execution are enabled in this phase.</footer>
+    <footer>Local development build · Creation uses a temporary organizer ID from .env. Authentication and role authorization are not implemented yet.</footer>
   </main>
+  <template id="problem-template">
+    <article class="problem-row">
+      <div class="problem-main"><div class="problem-title-line"><span class="problem-id"></span><h3 class="problem-title"></h3><span class="difficulty"></span><span class="retired-tag" hidden>Retired</span></div><p class="problem-description"></p><p class="problem-meta"></p></div>
+      <div class="row-actions"><button class="edit-button secondary" type="button">Edit</button><button class="retire-button danger" type="button">Retire</button></div>
+    </article>
+  </template>
 </body>
 </html>
