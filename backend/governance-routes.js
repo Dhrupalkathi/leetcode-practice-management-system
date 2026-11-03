@@ -144,6 +144,24 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
       if(!current.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'User not found.'});}
       let targetRole=current.rows[0].role_id;
       let targetRoleName=null;
+      const currentRole=await client.query('SELECT role_name FROM public.role WHERE role_id=$1',[current.rows[0].role_id]);
+      const isActiveAdmin=rolePrefix(currentRole.rows[0]?.role_name)==='Admin' && current.rows[0].is_active;
+      if(isActiveAdmin && ((hasActive && req.body.is_active===false) || hasRole)) {
+        const requestedRole=hasRole ? await client.query('SELECT role_name FROM public.role WHERE role_id=$1',[roleId]) : currentRole;
+        const targetCategory=rolePrefix(requestedRole.rows[0]?.role_name);
+        if(targetCategory!=='Admin' || (hasActive && req.body.is_active===false)) {
+          const otherAdmins=await client.query(
+            `SELECT COUNT(*)::integer AS count
+             FROM public.users u JOIN public.role r ON r.role_id=u.role_id
+             WHERE u.is_active=TRUE AND r.role_name LIKE 'Admin L%' AND u.user_id<>$1`,
+            [id]
+          );
+          if(otherAdmins.rows[0].count===0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({error:'The last active Admin account cannot be disabled or demoted.'});
+          }
+        }
+      }
       if(hasRole){
         const role=await client.query('SELECT role_id,role_name FROM public.role WHERE role_id=$1',[roleId]);
         if(!role.rowCount){await client.query('ROLLBACK');return res.status(400).json({error:'Role not found.'});}
@@ -209,6 +227,16 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
     } catch(error){next(error);}
   });
 
+  router.get('/support/agents', authRequired, allowRoles('Support','Admin'), async (req,res,next) => {
+    try {
+      const result=await pool.query(
+        `SELECT u.user_id,u.name,r.role_name
+         FROM public.users u JOIN public.role r ON r.role_id=u.role_id
+         WHERE u.is_active=TRUE AND r.role_name LIKE 'Support L%' ORDER BY u.name`
+      );
+      res.json({agents:result.rows});
+    } catch(error){next(error);}
+  });
   router.get('/support/tickets', authRequired, allowRoles('Support','Admin'), async (req,res,next) => {
     const status=typeof req.query.status==='string'?req.query.status.toUpperCase():'';
     if(status&&!['OPEN','IN_PROGRESS','WAITING','RESOLVED','CLOSED'].includes(status)) return res.status(400).json({error:'Invalid ticket status.'});
