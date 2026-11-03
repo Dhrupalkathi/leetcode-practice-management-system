@@ -2,31 +2,32 @@
 
 **Team 24 · MC212 Database Management Systems · DA-IICT**
 
-A LeetCode-style programming practice platform backed by PostgreSQL.
+A LeetCode-style programming practice and technical-assessment platform backed by PostgreSQL.
 
-## Implemented
+## Implemented modules
 
-- PostgreSQL connectivity through Express.
-- Problem listing, title search, difficulty and topic filtering, full problem details, topic labels and public sample-test display.
-- Problem create, update and safe retirement.
-- Code editor with Run samples and Submit solution using asynchronous Judge0 execution.
-- Per-user submission history, test-result summaries, verdict, execution time and peak memory.
-- Learner progress dashboard with solved/attempted counts, acceptance rate, practice streak, 30-day activity, topic performance, language usage, pending submissions and recent practice history.
-- Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
-- Organization-scoped company assessments, problem assignment, secure one-time candidate links, timed candidate coding workspace, candidate-only submission history, and post-assessment aggregate reports.
-- Parameterized SQL queries and server-side input validation.
-- Login/logout using the existing USERS and ROLE tables.
-- Self-service Learner L1 registration with Argon2id password storage; elevated roles are not selectable during public signup.
-- PostgreSQL-backed sessions with HttpOnly, SameSite cookies.
-- Legacy unsalted SHA-256 lab-hash verification and upgrade to Argon2id after successful login.
-- Role-category authorization based on the existing role names (e.g. Organizer L1 ... Organizer L10). Existing role records are retained.
+- **Accounts and roles:** seeded-user login, automatic legacy SHA-256-to-Argon2id migration, self-service Learner L1 registration, PostgreSQL-backed sessions, and Admin account/role controls.
+- **Problem library:** title search, difficulty/topic filtering, problem detail pages, public sample cases, and hidden-test confidentiality.
+- **Problem lifecycle:** Organizer create/edit/retire with Reviewer approval, changes-requested and rejection decisions, publication status and review history.
+- **Code editor and judge:** supported-language selector, Run samples, Submit solution, asynchronous Judge0 execution, verdicts, per-test outcomes, runtime/memory metrics and personal submission history.
+- **Learner progress:** solved/attempted counts, acceptance rate, streak, daily activity, topic performance, language usage and recent practice.
+- **Contests:** schedule, Organizer/Admin setup, Moderator problem-set management, Learner registration, contest-linked submissions, configurable score/penalty and leaderboard, plus Judge result reviews.
+- **Company assessments:** organization-scoped setup, invitations, time window and personal timer, candidate-only workspace/history, aggregate post-assessment reports and human-review activity indicators.
+- **Role services:** Mentor feedback, Support tickets and queue, Admin user/role management, audit history, and suspicious-activity review.
+- Parameterized SQL, server-side validation and authorization, rate limits, Helmet, secure session-cookie settings and generic API errors.
+
+## Existing role structure
+
+The database's 80 role records are retained: Learner L1–L10, Organizer L1–L10, Moderator L1–L10, Reviewer L1–L10, Mentor L1–L10, Judge L1–L10, Admin L1–L10 and Support L1–L10. Public registration can create only Learner L1; elevated roles are assigned by an Admin.
+
+Authorization is enforced by role category and ownership where implemented. The supplied SRS access matrix is category-level; distinct permissions between L1–L10 have not been defined as separate business rules in the current SRS, so the application does not invent level-specific privilege differences.
 
 ## Local setup
 
 1. Use the existing PostgreSQL database named `leetcode`.
-2. Copy `.env.example` to `.env` and enter your local database password.
+2. Copy `.env.example` to `.env` and enter the local database password.
 3. Generate a session secret with `openssl rand -hex 32` and set `SESSION_SECRET` in `.env`.
-4. Apply the database migrations in order (see below).
+4. Take a backup, then apply the migrations once and in order (see below).
 5. Install and run:
 
    ```bash
@@ -38,7 +39,7 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 
 ## Database migrations
 
-Take a backup before applying migrations. Run each migration once:
+Apply each incremental migration once, in numeric order. These extend the populated database without re-seeding it:
 
 ```bash
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/001_problem_crud.sql
@@ -47,74 +48,86 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f datab
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/004_contest_submissions.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/005_company_assessments.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/006_user_registration.sql
+psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/007_governance_workflows.sql
 ```
 
-Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions. Migration 004 adds optional contest linkage for new submissions, contest identity generation, creator attribution, and allows Admin-created contests without an Organizer subtype record. Previous submissions remain ordinary practice records. It also adds contest scoring settings with defaults of 100 points per solved problem, 5 penalty minutes per wrong attempt, and elapsed-time penalty disabled by default. Migration 005 adds organization ownership to assessments, invitation-token hashes and expiry, external candidate linkage on submissions, and separate uniqueness constraints for platform users and candidates. Existing assessment rows have no inferred organization; they remain visible to Admin until their ownership is assigned. Migration 006 adds identity generation for future user IDs without changing existing user records.
+- Migration 001 adds `problem_statement` and identity generation for new problem IDs beginning at 81.
+- Migration 002 widens the password hash field and creates the PostgreSQL session table.
+- Migration 003 adds asynchronous execution state, exact Judge0 language mappings, submission ID generation and per-test outcomes.
+- Migration 004 links future submissions to contests, adds contest creator attribution and configurable scoring fields.
+- Migration 005 adds organization ownership for assessments, invitation token hashes/expiry and candidate-linked submissions.
+- Migration 006 adds identity generation for future user IDs without changing seeded users.
+- Migration 007 adds problem review status/history, Mentor feedback, Support tickets, Judge reviews, suspicious-activity indicators and audit history.
 
-## Demo login
+**Never run `schema_with_data_fixed.sql` against the populated database.** It contains destructive `DROP TABLE ... CASCADE` statements.
 
-The original lab seed generator used the password `pw` followed by the user ID, then stored an unsalted SHA-256 digest. For example, the demo password pattern for user ID 82 is `pw82`. Use the email belonging to that seeded user.
+## Demo accounts
 
-On a successful legacy login, the server verifies SHA-256 and immediately replaces that user's stored hash with an Argon2id hash. New/changed passwords must use Argon2id. These predictable credentials are strictly for the local academic demo and must never be used in a deployed service.
+The original lab seed generator used the password `pw` followed by the user ID and stored an unsalted SHA-256 digest. For example, the local demo pattern for user ID 82 is `pw82`. These predictable credentials are for the academic seed only and must never be used in a deployed service.
 
-## API
+On the first successful legacy login, the application verifies SHA-256 and upgrades that account to Argon2id. New public registrations use Argon2id immediately. Never commit `.env`, actual passwords, hashes, database dumps or API tokens.
 
-- `GET /api/topics` — list available problem topics.
-- `GET /api/problems` — list active problems with assigned topic metadata.
-- `GET /api/problems/:id` — full problem details, topics and public sample tests (hidden test cases are excluded).
-- `GET /api/problems?includeInactive=true` — include retired problems for signed-in users.
-- `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
-- `POST /api/problems`, `PUT /api/problems/:id`, `PATCH /api/problems/:id/retire` — Organizer role category only.
-- `GET /api/languages` — seeded language versions available on the configured Judge0 provider.
-- `POST /api/submissions` — asynchronous sample run (`action: run`) or full hidden-test submission (`action: submit`).
-- `GET /api/submissions` and `GET /api/submissions/:id` — signed-in user's own submission history and result details.
-- `GET /api/progress/me` — signed-in Learner's aggregate practice dashboard, activity, topic and language metrics.
-- `GET /api/organizations` — organizations available to the signed-in Organizer/Admin.
-- `GET /api/assessments`, `POST /api/assessments`, `PUT /api/assessments/:id` — organization-scoped assessment management.
-- `POST /api/assessments/:id/invitations` — create a candidate and return a one-time invitation link.
-- `GET /api/assessments/:id/report` — aggregate candidate report after the assessment closes.
-- Candidate token routes under `/api/candidate-assessment` — invitation verification, start, assigned problems, candidate submissions/history, and finish.
-- `GET /api/contests`, `GET /api/contests/:id` — public contest schedule and details (upcoming problem lists are protected).
-- `POST /api/contests`, `PUT /api/contests/:id` — Organizer/Admin contest setup and upcoming-contest editing.
+## API overview
+
+**Accounts and problems**
+- `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
+- `GET /api/topics`, `GET /api/problems`, `GET /api/problems/:id`.
+- `POST /api/problems`, `PUT /api/problems/:id`, `PATCH /api/problems/:id/retire` — Organizer content lifecycle.
+- `GET /api/problems/review-queue`, `GET /api/problems/:id/reviews`, `POST /api/problems/:id/reviews` — Reviewer/Admin governance.
+
+**Submissions and learner progress**
+- `GET /api/languages` — exact language versions available on the configured Judge0 provider.
+- `POST /api/submissions` — asynchronous public-sample run or full submission (including hidden tests).
+- `GET /api/submissions`, `GET /api/submissions/:id` — the signed-in user's own history and results.
+- `GET /api/progress/me` — Learner practice statistics and activity.
+
+**Contests**
+- `GET /api/contests`, `GET /api/contests/:id`, `GET /api/contests/:id/leaderboard`.
+- `POST /api/contests`, `PUT /api/contests/:id` — Organizer/Admin setup and upcoming-contest editing.
 - `POST /api/contests/:id/register` — Learner registration before contest start.
-- `GET /api/contests/:id/leaderboard` — public standings.
+- `POST /api/contests/:id/problems`, `DELETE /api/contests/:id/problems/:problemId` — Organizer/Admin/Moderator problem-set changes before contest start.
+- `GET /api/judge/contests/:id/reviews`, `POST /api/judge/contests/:id/reviews` — Judge/Admin result validation after a contest ends.
 
-Contest scoring defaults to 100 points per solved problem and 5 penalty minutes per wrong full submission before the first accepted solution. Organizer/Admin setup can change both values and optionally include elapsed minutes from contest start to first acceptance. The leaderboard ranks by score descending, then penalty ascending.
-- `GET /api/contests`, `GET /api/contests/:id` — public contest schedule and details.
-- `POST /api/contests`, `PUT /api/contests/:id` — Organizer/Admin contest setup and upcoming-contest editing.
-- `POST /api/contests/:id/register` — Learner registration before contest start.
-- `GET /api/contests/:id/leaderboard` — public standings.
+Contest score defaults to 100 points per solved problem. Each wrong full submission before first acceptance adds 5 penalty minutes. Organizer/Admin can configure both values and optionally include elapsed minutes from contest start to first acceptance. The leaderboard ranks by score descending, then penalty ascending.
 
-Contest scoring defaults to 100 points per solved problem and 5 penalty minutes per wrong full submission before the first accepted solution. Organizer/Admin setup can change both values and optionally include elapsed minutes from contest start to first acceptance. The leaderboard ranks by score descending, then penalty ascending.
+**Company assessments and role services**
+- `GET /api/organizations`, `GET /api/assessments`, `POST /api/assessments`, `PUT /api/assessments/:id`.
+- `POST /api/assessments/:id/invitations`, `GET /api/assessments/:id/report`.
+- Candidate token routes under `/api/candidate-assessment` support invitation verification, start, assigned problems, candidate submissions/history, activity indicators and finish.
+- `POST /api/mentor/feedback`, `GET /api/mentor/feedback` — Mentor feedback and Learner feedback history.
+- `/api/support/tickets` — ticket creation, own-ticket history and Support/Admin queue updates.
+- `/api/admin/users`, `/api/admin/audit` — Admin account/role management and audit history.
+- `/api/assessments/:id/suspicious-activity` — organization-scoped human review of candidate activity signals.
 
 ## Company assessments
 
-Organizer accounts manage assessments for the organization attached to their Organizer profile. Admin accounts can choose an organization. Each assessment has a time window, a personal time limit, and an ordered set of active problems.
+Organizer accounts manage assessments for the organization attached to their Organizer profile. Admin accounts can choose an organization. Each assessment has a time window, a personal time limit and an ordered set of active problems.
 
-An invitation creates or reuses a Candidate record and stores only a SHA-256 hash of a random invitation token. The raw token is returned once to the Organizer with a candidate URL. Candidates open `/assessment.html#token=...`; the frontend sends the token in an Authorization header. The token expires three days after the assessment end time. A candidate can start only during the configured assessment window, and the effective deadline is the earlier of the assessment end time or the personal time limit.
+An invitation creates or reuses a Candidate record and stores only a SHA-256 hash of a random invitation token. The raw token is returned once to the Organizer. Candidates open `/assessment.html#token=...`; the frontend sends the token in an Authorization header. The token expires three days after the assessment end time. A candidate can start only during the assessment window, and the effective deadline is the earlier of the assessment end time or personal time limit.
 
-Candidate submissions are stored against `candidate_id` and `assessment_id`, not against a platform user account. Candidate-facing APIs return public sample cases only and scope submission history to the invitation. Organizer/Admin reports are available after the assessment closes and contain summary fields (rank, score, attempts, accepted submissions, solved problems, execution time, languages); they do not return source code.
+Candidate submissions are stored against `candidate_id` and `assessment_id`, not a platform user account. Candidate-facing APIs return public sample cases only and scope history to the invitation. Organizer/Admin reports are aggregate-only and do not return source code.
 
-Assessment score is the rounded percentage of assigned problems with at least one accepted full submission. This is the implementation's scoring rule for the academic project; it is not stated as a specific formula in the SRS.
+Candidate browser events such as tab-hidden, window-blur, copy and paste may be recorded as review indicators. They are not automatically classified as cheating; an authorized Organizer/Admin must review or dismiss them. Clipboard contents are not stored.
 
-**Invitation delivery:** This version generates a one-time invitation URL for an Organizer to copy and share manually. Automatic email sending is not configured. Set `APP_BASE_URL` to a candidate-reachable app URL when using the portal from another device. The local server is currently configured for local development; deployment networking and HTTPS must be configured separately.
+**Invitation delivery:** This build generates a one-time invitation URL for an Organizer to copy and share manually; automatic email delivery is not configured. Set `APP_BASE_URL` to a candidate-reachable URL when using another device. HTTPS and deployment networking must be configured separately.
 
-**Existing assessment ownership:** The provided assessment table had no organization foreign key. Migration 005 adds it but does not guess ownership for existing seed assessment rows. Those legacy rows remain accessible to Admin until a valid organization is assigned.
+**Legacy assessment ownership:** Existing assessment rows were not assigned an organization by inference. They remain Admin-visible until a valid organization is assigned.
 
 ## Code execution provider
 
-The default development configuration uses the hosted Judge0 CE endpoint at `https://ce.judge0.com`. Set `JUDGE0_BASE_URL` to a self-hosted Judge0 endpoint for a private environment; set `JUDGE0_AUTH_TOKEN` only when the configured deployment requires it. The language selector is limited to seeded database versions that exactly match language names exposed by the current Judge0 instance. Other seeded versions are not offered for execution until an exact provider mapping is configured.
+The default development configuration uses hosted Judge0 CE at `https://ce.judge0.com`. Set `JUDGE0_BASE_URL` to a self-hosted Judge0 endpoint for a private environment; set `JUDGE0_AUTH_TOKEN` only when that deployment requires it. The language selector offers only seeded versions that exactly match names exposed by the configured provider.
 
-**Privacy:** When using hosted Judge0, submitted source code and relevant test-case input/expected output are sent to that external execution service. Use a self-hosted Judge0 deployment before processing company-confidential assessments, private problems, or sensitive candidate data. Keep the Judge0 endpoint and any authentication token private. CPU, wall-time, and memory limits are configurable through the `JUDGE0_*` environment variables.
+**Privacy:** Hosted Judge0 receives submitted source code and relevant test-case input/expected output. Use a self-hosted Judge0 deployment before processing company-confidential assessments, private problems or sensitive candidate data. CPU, wall-time and memory limits are configurable through `JUDGE0_*` environment variables.
 
 ## Security scope and limitations
 
-This is a localhost-only academic development build. The app uses parameterized SQL, server-side role checks, rate-limited login, Argon2id for upgraded credentials, PostgreSQL-backed sessions, HttpOnly/SameSite cookies, Origin checks on browser state-changing requests, Helmet and generic API errors.
+This is a local academic development build. It includes parameterized SQL, server-side validation and role-category checks, ownership checks for organization-scoped assessment and contest operations, password hashing, PostgreSQL sessions, rate limiting, Helmet and Origin checks on browser state-changing requests.
 
-The legacy SHA-256 hashes are unsalted and intentionally supported only to migrate the seeded lab accounts. They are not acceptable for new password storage. The predictable `pw + user_id` demo passwords are not production credentials.
+Role-category routes are implemented for the main Learner, Organizer, Moderator, Reviewer, Mentor, Judge, Admin and Support workflows. The exact fine-grained differences between L1–L10 are not defined in the supplied SRS access matrix; do not claim distinct level-based privileges beyond the category rules that are implemented.
 
-The current authorization implementation uses the eight existing role categories by their role-name prefix; problem management is restricted to Organizer. Detailed per-level permission differences, full Admin/Moderator/Reviewer/Mentor/Judge/Support workflows, account registration and password reset still need implementation against the final SRS access matrix. Do not describe these unimplemented workflows as complete.
+Do not deploy or expose this application until the final test plan is executed, production HTTPS and database credentials are configured, the code-execution worker is isolated and privately hosted where required, and any remaining deployment controls are completed.
 
-Do not deploy this application or expose it to a network until remaining SRS permissions, account recovery, HTTPS deployment settings, restricted database credentials and full security testing are completed. Never commit `.env`, database dumps, actual passwords or API tokens.
+## Final verification
 
-Never run the old `schema_with_data_fixed.sql` against the populated database; it contains destructive DROP ... CASCADE statements.
+`docs/FINAL_TEST_PLAN.md` is the authoritative test register. It documents what to test, why, how, expected results and the ordered final execution sequence. Per the project workflow, execute the full test plan after functionality development is complete; do not treat code presence or syntax review as functional verification.
+
