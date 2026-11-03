@@ -49,6 +49,25 @@ async function recalculateContestRegistration(pool, contestId, userId) {
     [contestId,userId]
   );
 }
+async function recalculateCandidateAssessmentScore(pool,assessmentId,candidateId) {
+  if(!assessmentId||!candidateId)return;
+  await pool.query(
+    `UPDATE public.invites i
+     SET score=CASE
+       WHEN (SELECT COUNT(*) FROM public.assessment_problem ap WHERE ap.assessment_id=i.assessment_id)=0 THEN 0
+       ELSE ROUND(
+         100.0 * (
+           SELECT COUNT(DISTINCT s.problem_id)
+           FROM public.submission s
+           WHERE s.assessment_id=i.assessment_id AND s.candidate_id=i.candidate_id
+             AND s.is_run_only=FALSE AND s.execution_status='COMPLETED' AND s.verdict_id=1
+         ) / (SELECT COUNT(*) FROM public.assessment_problem ap WHERE ap.assessment_id=i.assessment_id)
+       )::integer
+     END
+     WHERE i.assessment_id=$1 AND i.candidate_id=$2 AND i.status='Completed'`,
+    [assessmentId,candidateId]
+  );
+}
 async function processSubmission(pool, submission, testCases, language) {
   let totalTime = 0;
   let maximumMemory = 0;
@@ -101,6 +120,13 @@ async function processSubmission(pool, submission, testCases, language) {
        WHERE submission_id=$4`,
       [finalVerdictId, totalTime, maximumMemory, submission.submission_id]
     );
+    if(submission.assessment_id && submission.candidate_id) {
+      try {
+        await recalculateCandidateAssessmentScore(pool,submission.assessment_id,submission.candidate_id);
+      } catch(scoreError) {
+        console.error('Candidate assessment score recalculation failed:',scoreError.message);
+      }
+    }
     try {
       await recalculateContestRegistration(pool, submission.contest_id, submission.user_id);
     } catch (scoreError) {
