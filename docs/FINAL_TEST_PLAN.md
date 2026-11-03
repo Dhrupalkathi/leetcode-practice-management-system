@@ -35,6 +35,16 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **How:** Start the app using the documented npm command, inspect startup output, and open the local application URL.
 - **Expected:** PostgreSQL connection succeeds and the frontend loads. No database password or session secret appears in logs.
 
+### A-03 — Incremental migrations are applied in order
+
+- **What:** Apply each project migration once, in numeric order, from 001 through 007.
+
+- **Why:** New workflows depend on the schema added in each preceding migration.
+
+- **How:** Take a backup, then apply `database/migrations/001_problem_crud.sql` through `007_governance_workflows.sql` in order using `psql -v ON_ERROR_STOP=1`; inspect migration output and schema changes.
+
+- **Expected:** Each migration completes without dropping seeded records. Never re-run `schema_with_data_fixed.sql`, because it contains destructive DROP TABLE statements.
+
 ### A-02 — Existing database records are preserved
 - **What:** Compare existing users, 80 roles, problems, organizers, topics, test cases, languages, contests, assessments, verdicts, and submissions with the pre-development backup.
 - **Why:** The application must extend the academic seed database without deleting existing records or relationships.
@@ -332,13 +342,13 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **What:** Verify contest score and penalty after accepted and incorrect submissions.
 - **Why:** Contest outcomes must be calculated consistently.
 - **How:** Submit wrong code and then an accepted solution for a problem; inspect contest_registration.
-- **Expected:** Each accepted problem adds 100 points. Each wrong full submission before the first accepted solution adds 5 penalty points. Sample-only runs do not affect score.
+- **Expected:** Each accepted problem adds the configured points-per-problem value (default 100). Each wrong full submission before first acceptance adds the configured penalty in minutes (default 5). If elapsed-time penalty is enabled, whole minutes from contest start to first acceptance are also added per solved problem. Sample-only runs do not affect score.
 
 ### F-08 — Leaderboard ordering
 - **What:** Compare ranks for participants with different scores and penalties.
 - **Why:** Contest participants need transparent ranking.
 - **How:** Create ties and different penalties, then inspect leaderboard results and SQL ordering.
-- **Expected:** Higher score ranks first; for equal scores, lower penalty ranks first; remaining ties use registration order and learner ID for stable display.
+- **Expected:** Higher score ranks first; for equal scores, lower penalty ranks first; registration time and learner ID provide deterministic ordering where scores and penalties match.
 
 ### F-09 — Contest and practice separation
 - **What:** Verify contest submissions do not count toward ordinary practice progress metrics.
@@ -442,11 +452,381 @@ Run these stages in order. Record test date, account and role, steps performed, 
 ---
 ## H. Role-specific workflows and governance
 
-Detailed cases will be added as the remaining roles are implemented. Preserve all 80 existing role records across Learner, Organizer, Moderator, Reviewer, Mentor, Judge, Admin, and Support. Verify allowed and denied actions against the approved access matrix; do not assume every level in a category has identical permissions unless the approved policy says so.
+
+
+### H-01 — Preserve all 80 role records
+
+- **What:** Confirm all 80 existing role rows remain present with their original IDs, names and descriptions.
+
+- **Why:** The project model includes eight categories with ten levels each; implementation must not collapse or delete these records.
+
+- **How:** Compare the ROLE table before and after all migrations and Admin operations; inspect IDs 1–80.
+
+- **Expected:** Learner, Organizer, Moderator, Reviewer, Mentor, Judge, Admin and Support each retain L1–L10 and their original role_id values.
+
+
+
+### H-02 — Reviewer queue is restricted
+
+- **What:** Open the problem review queue as Reviewer, Admin, Organizer and Learner.
+
+- **Why:** Only authorized review roles should make publication decisions.
+
+- **How:** Call `GET /api/problems/review-queue` from each account and inspect the Workspace interface.
+
+- **Expected:** Reviewer and Admin can view pending review work; other categories receive a forbidden response and no review queue is displayed.
+
+
+
+### H-03 — New problem enters pending review
+
+- **What:** Create a new problem as an Organizer.
+
+- **Why:** Content should follow the SRS lifecycle rather than becoming public before review.
+
+- **How:** Submit a problem through the Organizer form and inspect its `review_status` and `is_active` fields.
+
+- **Expected:** The new problem is stored with `PENDING_REVIEW` and `is_active = FALSE`; it does not appear in public problem discovery.
+
+
+
+### H-04 — Reviewer approval publishes a problem
+
+- **What:** Approve a pending problem.
+
+- **Why:** Publication must be a deliberate, recorded review action.
+
+- **How:** Sign in as Reviewer, add review comments, choose APPROVED, then inspect the problem and problem_review records.
+
+- **Expected:** The problem becomes `PUBLISHED` and active; reviewer identity, decision, comments and timestamp are retained.
+
+
+
+### H-05 — Changes requested and resubmission
+
+- **What:** Request changes on a pending problem, then have the Organizer edit and resubmit it.
+
+- **Why:** The lifecycle must support iterative review without deleting earlier decisions.
+
+- **How:** Choose CHANGES_REQUESTED with comments, edit the problem as its Organizer, then inspect the new review queue entry.
+
+- **Expected:** The problem remains inactive with `CHANGES_REQUESTED`; the Organizer's update returns it to `PENDING_REVIEW`; previous review history remains stored.
+
+
+
+### H-06 — Reject a problem
+
+- **What:** Reject a problem submitted for review.
+
+- **Why:** Invalid or unsuitable content must not be published.
+
+- **How:** Choose REJECTED with a reviewer comment and inspect public listing and review history.
+
+- **Expected:** The problem stays inactive with `REJECTED` status; public guests cannot retrieve its content; the decision is retained.
+
+
+
+### H-07 — Organizer retires a published problem
+
+- **What:** Retire a previously published problem.
+
+- **Why:** The SRS requires retirement without destroying historical records.
+
+- **How:** Retire it from the Organizer interface and inspect `is_active`, `review_status`, submissions and test cases.
+
+- **Expected:** The problem becomes inactive and `RETIRED`; submission/test-case history is preserved.
+
+
+
+### H-08 — Mentor feedback is scoped to a learner
+
+- **What:** Create and retrieve feedback for a learner, optionally linked to a problem or submission.
+
+- **Why:** Mentors should be able to guide learners without exposing unrelated learners' records.
+
+- **How:** Use a Mentor account to post feedback to a valid Learner ID and optionally a submission belonging to that learner; then view the learner's feedback.
+
+- **Expected:** Feedback is stored with mentor, learner, optional problem/submission and timestamp; a submission owned by a different learner is rejected; each learner sees only their own received feedback.
+
+
+
+### H-09 — Learner support ticket lifecycle
+
+- **What:** Create a support ticket and view its status.
+
+- **Why:** Users need a recorded way to request platform assistance.
+
+- **How:** Create a LOW/MEDIUM/HIGH/URGENT ticket, open My tickets, and inspect the support_ticket row.
+
+- **Expected:** The ticket is associated with its requester and starts OPEN; unrelated learners cannot read it through the personal ticket endpoint.
+
+
+
+### H-10 — Support queue and assignment
+
+- **What:** Update support tickets as Support and Admin.
+
+- **Why:** Support staff must process tickets without giving ordinary users queue-wide access.
+
+- **How:** Sign in as Support, load the queue, change status/priority and assign to an active Support account; attempt the same as Learner.
+
+- **Expected:** Support/Admin can view and update the queue; non-support users cannot; assignment accepts only active Support-role accounts; changes are timestamped and audited.
+
+
+
+### H-11 — Judge validates ended contest results
+
+- **What:** Approve or flag contest results.
+
+- **Why:** The SRS includes Judge responsibilities for validating contest results.
+
+- **How:** After a contest ends, open its leaderboard in the Judge workspace and save APPROVED or FLAGGED with review notes.
+
+- **Expected:** A Judge/Admin decision is stored with contest, reviewer and timestamp; a contest that has not ended cannot be reviewed; prior reviews remain visible.
+
+
+
+### H-12 — Moderator manages contest problem sets
+
+- **What:** Add/remove problems from an upcoming contest as Moderator.
+
+- **Why:** Contest moderation requires controlled problem-set management.
+
+- **How:** Open an upcoming contest as Moderator and add an active problem or remove one without submissions; attempt the same after start and after a problem has contest submissions.
+
+- **Expected:** Moderator can change the problem set before start; cannot edit general contest ownership/scoring fields; the problem set locks at start and a problem with submissions cannot be removed.
+
+
+
+### H-13 — Admin user and role management
+
+- **What:** Search users, change a role using one of the existing role IDs, and activate/deactivate an account.
+
+- **Why:** The SRS requires administration of users, roles and account activity.
+
+- **How:** Use Admin account management to assign a role, deactivate/reactivate a user, and assign an organization when creating an Organizer profile.
+
+- **Expected:** Changes persist; only role IDs 1–80 are selectable; Organizer conversion requires a valid organization; all 80 ROLE rows remain intact; changes are audited.
+
+
+
+### H-14 — Last active Admin protection
+
+- **What:** Attempt to demote or deactivate the last active Admin account.
+
+- **Why:** Prevent accidental removal of all platform administration capability.
+
+- **How:** Use an Admin account when only one active Admin remains and attempt to change its role or deactivate it.
+
+- **Expected:** The API rejects the change and leaves the account active with an Admin role.
+
+
+
+### H-15 — Admin audit history
+
+- **What:** View audit events for account changes, problem review, feedback, support tickets, judging and suspicious-activity decisions.
+
+- **Why:** Sensitive operational actions need accountability.
+
+- **How:** Use Admin workspace to load audit history and compare entries to their associated records.
+
+- **Expected:** Admin can read recent audit events; non-Admin accounts cannot; event details contain no passwords, session secrets, candidate invitation tokens or source-code payloads.
+
+
 
 ## I. Security and non-functional verification
 
-Detailed cases will be added as the full architecture is completed. Include direct API authorization, ownership and IDOR checks, SQL injection, XSS-safe rendering, CSRF/origin behavior, session fixation, rate limits, generic error handling, audit records, execution isolation, resource limits, concurrency, and backup/recovery.
+
+
+### I-01 — Server-side authorization for every protected API
+
+- **What:** Attempt protected operations without a session and with the wrong role category.
+
+- **Why:** Frontend button hiding is not a security boundary.
+
+- **How:** Call each protected route directly with curl/browser developer tools using Guest, Learner, Organizer, Reviewer, Mentor, Moderator, Judge, Support and Admin accounts.
+
+- **Expected:** Unauthenticated calls return 401; authenticated but unauthorized calls return 403 or a non-disclosing 404 as specified; no protected mutation occurs.
+
+
+
+### I-02 — Ownership and IDOR checks
+
+- **What:** Change IDs in problem, submission, contest, assessment, support-ticket and suspicious-activity requests.
+
+- **Why:** Predictable IDs must not grant access to another user's or organization's records.
+
+- **How:** Use two accounts from different users/organizations and request each other's record IDs directly.
+
+- **Expected:** Users see only their own submissions/tickets/feedback; Organizers see only their organization's assessments and activity indicators; contest owners and moderators follow their separate permissions.
+
+
+
+### I-03 — Hidden test-case confidentiality
+
+- **What:** Try to obtain hidden test input and expected output through problem, submission, contest and candidate APIs.
+
+- **Why:** Hidden judging data must remain confidential.
+
+- **How:** Inspect all JSON responses and network requests for a problem containing both public and hidden test cases.
+
+- **Expected:** Only public samples are returned; hidden test contents never appear in browser HTML or JSON. Judge workers receive them server-side only.
+
+
+
+### I-04 — Assessment invitation token confidentiality
+
+- **What:** Inspect invitation creation, persistence and use.
+
+- **Why:** A leaked database token or guessed invitation should not grant candidate access.
+
+- **How:** Capture an invitation link, inspect the stored hash, then try invalid and expired links.
+
+- **Expected:** Only a SHA-256 token hash is stored; raw token is returned once and sent in an Authorization header; invalid/expired links are rejected.
+
+
+
+### I-05 — SQL injection
+
+- **What:** Supply SQL-looking values in search, form fields, IDs and filter parameters.
+
+- **Why:** User input must not alter database query structure.
+
+- **How:** Use harmless injection strings through forms and direct API requests; inspect results and database records.
+
+- **Expected:** Parameterized queries treat values as data; no unintended query or mutation occurs.
+
+
+
+### I-06 — XSS and unsafe text rendering
+
+- **What:** Enter HTML/script-like strings into problem text, feedback, contest rules, support descriptions and review comments.
+
+- **Why:** Stored content must not execute in other users' browsers.
+
+- **How:** Save representative payload strings and view them from a different authorized account.
+
+- **Expected:** Text is rendered as text; no script/event handler executes; DOM insertion does not interpret untrusted strings as HTML.
+
+
+
+### I-07 — CSRF and cross-origin state changes
+
+- **What:** Attempt cross-origin POST/PUT/PATCH/DELETE requests while signed in.
+
+- **Why:** A browser session should not be usable by an unrelated site to mutate records.
+
+- **How:** Issue cross-origin requests with and without Origin headers using a controlled test page.
+
+- **Expected:** Cross-origin requests are rejected according to the origin/SameSite policy; legitimate same-origin actions continue to work.
+
+
+
+### I-08 — Session fixation, expiry and logout
+
+- **What:** Confirm login rotates session ID, cookies are HttpOnly/SameSite and logout invalidates the session.
+
+- **Why:** Prevent stolen/pre-authentication session reuse.
+
+- **How:** Compare session IDs before/after login, inspect cookie attributes, wait for expiry where practical, and retry after logout.
+
+- **Expected:** Session ID is regenerated at login; cookie is HttpOnly and SameSite Strict; old/expired/destroyed session cannot authorize protected actions.
+
+
+
+### I-09 — Rate limiting and request-size limits
+
+- **What:** Exceed login, registration and general API rate limits and send oversized JSON/code.
+
+- **Why:** Reduce brute-force and resource-exhaustion risks.
+
+- **How:** Use controlled repeated requests and payloads above configured limits.
+
+- **Expected:** Requests are rate-limited or rejected with bounded responses; server remains responsive.
+
+
+
+### I-10 — Candidate activity indicators are not automatic findings
+
+- **What:** Generate tab-hidden, window-blur, copy and paste events during a candidate assessment.
+
+- **Why:** Suspicious behavior should support human review without automatically declaring a candidate guilty.
+
+- **How:** Trigger each signal and inspect the activity record and Organizer/Admin review screen.
+
+- **Expected:** Event type and minimal metadata are stored; clipboard contents and raw copied text are not stored; the interface labels indicators as non-conclusive; a human can mark REVIEWED or DISMISSED.
+
+
+
+### I-11 — Audit coverage and secret minimization
+
+- **What:** Inspect audit records for sensitive operations and verify secret fields are excluded.
+
+- **Why:** Accountability must not create a second repository of secrets.
+
+- **How:** Perform representative admin, review, support, mentor, judge and suspicious-activity actions; inspect audit_log details and server logs.
+
+- **Expected:** Actor/action/entity/time are retained; password hashes, plaintext credentials, session cookies, invitation tokens and source code are not copied into audit details or ordinary logs.
+
+
+
+### I-12 — Code execution isolation and resource controls
+
+- **What:** Verify submitted code runs only through the configured isolated Judge0 execution service.
+
+- **Why:** Untrusted code must not execute inside the Express process or access the application database host.
+
+- **How:** Inspect deployment configuration and send controlled CPU/time/memory-limit examples only to the isolated judge.
+
+- **Expected:** Source code and test inputs are sent to the configured judge; CPU, wall-time and memory limits are enforced; the app process and database are not exposed to the submitted program.
+
+
+
+### I-13 — Provider outage and interrupted worker recovery
+
+- **What:** Simulate an unavailable Judge0 endpoint and restart the application while a submission is pending.
+
+- **Why:** Submission history must remain consistent across execution failures and restarts.
+
+- **How:** Use a controlled development endpoint, submit harmless code, and restart the server while a job is pending.
+
+- **Expected:** The submission record remains; failed/interrupted work reaches FAILED with a generic retry message; no dangling PENDING/RUNNING job remains indefinitely.
+
+
+
+### I-14 — Concurrency and database integrity
+
+- **What:** Submit multiple requests concurrently and register several learners for a contest.
+
+- **Why:** Simultaneous use must not create duplicate attempt numbers, duplicate registrations or inconsistent scores.
+
+- **How:** Use a small controlled parallel request batch and inspect unique constraints/relationships.
+
+- **Expected:** Every accepted action has a unique persisted record; transaction/unique constraints prevent duplicate attempts and registrations; contest score totals remain consistent.
+
+
+
+### I-15 — Backup and recovery
+
+- **What:** Restore the database from the project backup into a separate test database.
+
+- **Why:** The platform must be recoverable without damaging the live project database.
+
+- **How:** Restore only into a disposable database and compare key counts/foreign keys with the backup source.
+
+- **Expected:** Users, roles, problems, submissions, contests, assessments and review/audit history restore with consistent relationships.
+
+
+
+### I-16 — Performance and availability under representative load
+
+- **What:** Review problem browsing, contest listing, history and dashboard response under representative concurrent requests.
+
+- **Why:** The platform should remain responsive for practice and scheduled assessment/contest activity.
+
+- **How:** Generate a controlled load against a staging/local test instance and monitor latency, errors, database connections and resource use.
+
+- **Expected:** The application stays responsive within agreed project demonstration limits and does not lose or corrupt records.
 
 ## Test result log
 
