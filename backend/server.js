@@ -10,6 +10,7 @@ const argon2 = require('argon2');
 const { rateLimit } = require('express-rate-limit');
 const { pool } = require('./db');
 const createProblemDiscoveryRouter = require('./problem-discovery');
+const createGovernanceRouter = require('./governance-routes');
 const createSubmissionRouter = require('./submission-routes');
 const createProgressRouter = require('./progress-routes');
 const createContestRouter = require('./contest-routes');
@@ -98,17 +99,7 @@ function allowRoles(...categories) {
     next();
   };
 }
-function validateProblem(body) {
-  const errors = [];
-  for (const field of ['title','problem_statement','input_format','output_format','difficulty']) {
-    if (typeof body[field] !== 'string' || !body[field].trim()) errors.push(`${field} is required`);
-  }
-  if (!['Easy','Medium','Hard'].includes(body.difficulty)) errors.push('difficulty must be Easy, Medium, or Hard');
-  if (body.constraints !== undefined && body.constraints !== null && typeof body.constraints !== 'string') {
-    errors.push('constraints must be text or null');
-  }
-  return errors;
-}
+const governanceRouter = createGovernanceRouter({ pool, authRequired, allowRoles });
 
 app.get('/api/health/db', async (req, res, next) => {
   try {
@@ -221,92 +212,14 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
-app.use('/api', createProblemDiscoveryRouter({ pool, authRequired }));
+app.use('/api', createProblemDiscoveryRouter({ pool, authRequired, allowRoles, audit: governanceRouter.audit }));
+app.use('/api', governanceRouter);
 app.use('/api', createSubmissionRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createProgressRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createContestRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createAssessmentRouter({ pool, authRequired, allowRoles }));
 app.use('/api/candidate-assessment', createCandidateAssessmentRouter({ pool }));
 
-app.get('/api/problems', async (req, res, next) => {
-  try {
-    const includeInactive = req.query.includeInactive === 'true' && Boolean(req.session.userId);
-    const result = await pool.query(
-      `SELECT problem_id,title,problem_statement,input_format,output_format,constraints,
-              difficulty,is_active,created_at,created_by
-       FROM public.problem WHERE ($1::boolean OR is_active=TRUE) ORDER BY problem_id`,
-      [includeInactive]
-    );
-    res.json({ problems: result.rows });
-  } catch (error) { next(error); }
-});
-app.get('/api/problems/:id', async (req, res, next) => {
-  const id = Number(req.params.id);
-  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid problem ID.' });
-  try {
-    const result = await pool.query(
-      `SELECT problem_id,title,problem_statement,input_format,output_format,constraints,
-              difficulty,is_active,created_at,created_by
-       FROM public.problem WHERE problem_id=$1 AND (is_active=TRUE OR $2::boolean)`,
-      [id, Boolean(req.session.userId)]
-    );
-    if (!result.rowCount) return res.status(404).json({ error: 'Problem not found.' });
-    res.json({ problem: result.rows[0] });
-  } catch (error) { next(error); }
-});
-
-app.post('/api/problems', authRequired, allowRoles('Organizer'), async (req, res, next) => {
-  const errors = validateProblem(req.body);
-  if (errors.length) return res.status(400).json({ error: 'Validation failed.', details: errors });
-  if (!req.user.organizer_id) return res.status(403).json({ error: 'Organizer profile is missing.' });
-  try {
-    const result = await pool.query(
-      `INSERT INTO public.problem(title,problem_statement,input_format,output_format,constraints,difficulty,created_by)
-       VALUES($1,$2,$3,$4,$5,$6,$7)
-       RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
-                 difficulty,is_active,created_at,created_by`,
-      [req.body.title.trim(),req.body.problem_statement.trim(),req.body.input_format.trim(),
-       req.body.output_format.trim(),req.body.constraints?.trim() || null,req.body.difficulty,req.user.organizer_id]
-    );
-    res.status(201).json({ problem: result.rows[0] });
-  } catch (error) {
-    if (error.code === '23505') return res.status(409).json({ error: 'A problem with that title already exists.' });
-    next(error);
-  }
-});
-app.put('/api/problems/:id', authRequired, allowRoles('Organizer'), async (req, res, next) => {
-  const id = Number(req.params.id);
-  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid problem ID.' });
-  const errors = validateProblem(req.body);
-  if (errors.length) return res.status(400).json({ error: 'Validation failed.', details: errors });
-  try {
-    const result = await pool.query(
-      `UPDATE public.problem SET title=$1,problem_statement=$2,input_format=$3,
-       output_format=$4,constraints=$5,difficulty=$6 WHERE problem_id=$7
-       RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
-                 difficulty,is_active,created_at,created_by`,
-      [req.body.title.trim(),req.body.problem_statement.trim(),req.body.input_format.trim(),
-       req.body.output_format.trim(),req.body.constraints?.trim() || null,req.body.difficulty,id]
-    );
-    if (!result.rowCount) return res.status(404).json({ error: 'Problem not found.' });
-    res.json({ problem: result.rows[0] });
-  } catch (error) {
-    if (error.code === '23505') return res.status(409).json({ error: 'A problem with that title already exists.' });
-    next(error);
-  }
-});
-app.patch('/api/problems/:id/retire', authRequired, allowRoles('Organizer'), async (req, res, next) => {
-  const id = Number(req.params.id);
-  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid problem ID.' });
-  try {
-    const result = await pool.query(
-      'UPDATE public.problem SET is_active=FALSE WHERE problem_id=$1 RETURNING problem_id,title,is_active',
-      [id]
-    );
-    if (!result.rowCount) return res.status(404).json({ error: 'Problem not found.' });
-    res.json({ problem: result.rows[0], message: 'Problem retired. Related history was preserved.' });
-  } catch (error) { next(error); }
-});
 
 app.use(express.static(path.join(__dirname,'..','frontend')));
 app.use('/api',(req,res)=>res.status(404).json({error:'API route not found'}));
