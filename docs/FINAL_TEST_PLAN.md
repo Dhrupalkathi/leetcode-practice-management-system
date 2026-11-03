@@ -338,8 +338,97 @@ Run these stages in order. Record test date, account and role, steps performed, 
 ---
 ## G. Company assessments
 
-Detailed cases will be added with assessment functionality. Verify company ownership, assessment setup, invitations, candidate eligibility, start/end boundaries, live-code confidentiality, completed reports, and isolation between organizations.
+### G-01 — Organization-scoped assessment listing
+- **What:** View the assessment list as an Organizer and as an Admin.
+- **Why:** Company assessment details must be isolated by organization; Admin has platform-wide access.
+- **How:** Sign in with Organizer accounts belonging to different organizations and with an Admin account. Compare returned assessment and organization IDs.
+- **Expected:** Each Organizer sees only assessments belonging to their organization; Admin sees all assessments, including legacy rows without an assigned organization.
 
+### G-02 — Assessment creation and problem assignment
+- **What:** Create an assessment with title, description, start/end time, time limit, and ordered active problems.
+- **Why:** The SRS requires private assessments with configurable timing and selected questions.
+- **How:** Use Organizer and Admin accounts to create assessments; inspect assessment and assessment_problem rows.
+- **Expected:** The assessment is attached to the correct organization and creator; problem assignments and order persist in one transaction; invalid/inactive problem IDs and invalid time limits are rejected.
+
+### G-03 — Assessment ownership and editing
+- **What:** Edit an upcoming assessment and attempt to edit another organization's assessment or an assessment that has started.
+- **Why:** Assessment setup must enforce organization ownership and schedule rules.
+- **How:** Use two different Organizer accounts and an Admin account to edit the same assessment before and after start.
+- **Expected:** Organizer can edit only their own upcoming assessments; Admin can edit any upcoming assessment; started assessments are immutable through this route.
+
+### G-04 — Candidate invitation creation
+- **What:** Invite a candidate by name and email.
+- **Why:** The system must maintain candidate identity and invitation status.
+- **How:** Create an invitation through the assessment detail view; inspect candidate and invites rows.
+- **Expected:** Candidate is created or reused by unique email; invite status is Invited; invitation time and expiry are recorded; a repeated email reuses the candidate for that assessment.
+
+### G-05 — Invitation token confidentiality
+- **What:** Verify how the one-time candidate token is generated, stored, and used.
+- **Why:** A guessed or database-read invitation token must not expose an assessment.
+- **How:** Capture the invitation URL once, inspect the database token field, then try a random token and an expired token.
+- **Expected:** Only a SHA-256 token hash is stored; plaintext token is returned once; invalid or expired links receive an authorization/expiry error; the candidate token is sent in an Authorization header, not a query parameter.
+
+### G-06 — Candidate start window
+- **What:** Attempt to start before, during, and after the configured assessment window.
+- **Why:** Candidates must start only when eligible.
+- **How:** Use invitations with scheduled times in the future, currently open, and already ended.
+- **Expected:** A candidate can start only when start_time <= current time < end_time; status changes from Invited to Started and attempted_at is recorded once.
+
+### G-07 — Individual time limit and completion
+- **What:** Verify the candidate timer and assessment deadline.
+- **Why:** Every candidate has a configured time limit, bounded by the assessment end time.
+- **How:** Start an assessment with a short time limit; wait for expiry and also test the scheduled end boundary.
+- **Expected:** Candidate cannot submit after the earlier of personal time-limit expiry or assessment end; invitation changes to Completed and score is recorded.
+
+### G-08 — Assessment problem confidentiality
+- **What:** Request assigned problems before starting, after starting, and using a different invitation token.
+- **Why:** Private assessment questions must not be exposed to unauthorized candidates.
+- **How:** Open problem endpoints with an Invited token, Started token, and token for another assessment.
+- **Expected:** Invited candidates cannot retrieve problem details before start; Started candidates can access only assigned problems; other assessment problems are not returned.
+
+### G-09 — Public sample and hidden test confidentiality
+- **What:** Run samples and submit code during an assessment.
+- **Why:** Candidates may need sample feedback, but hidden judging inputs/outputs must remain confidential.
+- **How:** Inspect candidate problem details and candidate submission result responses for both Run public samples and Submit solution.
+- **Expected:** Public sample inputs/expected outputs are available; hidden test inputs/expected outputs never appear in candidate-facing JSON or HTML.
+
+### G-10 — Candidate submission persistence and isolation
+- **What:** Submit code as a candidate and attempt to retrieve another candidate's submission.
+- **Why:** External candidates must have private histories without requiring platform user accounts.
+- **How:** Create two candidate invitations, submit under both, and request the other candidate's submission ID using each token.
+- **Expected:** Rows use candidate_id with user_id NULL and correct assessment_id; a candidate can retrieve only their own code and results; another candidate's ID returns not found.
+
+### G-11 — Assessment score and report
+- **What:** Finish an assessment and compare its score and report.
+- **Why:** Recruiters need an authorized post-assessment summary.
+- **How:** Complete an assessment with known accepted and unaccepted problems, then request its report after end_time.
+- **Expected:** Score is the rounded percentage of assigned problems accepted at least once; report includes rank, score, status, attempts, accepted submissions, solved problems, execution time, and languages.
+
+### G-12 — Live source-code privacy
+- **What:** Attempt to obtain candidate code from Organizer/Admin endpoints while the assessment is live and after it closes.
+- **Why:** The SRS says candidate live code is hidden during assessments unless a specifically approved policy changes.
+- **How:** Inspect assessment detail, invitation list, and report endpoints before and after assessment end.
+- **Expected:** These management/report endpoints never return candidate source code. Candidate code remains available only through that candidate's token-scoped history.
+
+### G-13 — Cross-organization isolation
+- **What:** Request another organization's assessment, invitations, and report.
+- **Why:** Company assessment content and candidate data are confidential across organizations.
+- **How:** Use an Organizer from Organization A and request assessment IDs belonging to Organization B.
+- **Expected:** Cross-organization records return not found; Admin retains platform-wide access.
+
+### G-14 — Invitation revocation and expiry
+- **What:** Verify behavior after token expiry and after re-inviting a candidate.
+- **Why:** A stale or superseded link must not continue granting access.
+- **How:** Use an expired link, re-invite the same candidate, then attempt the old and new links.
+- **Expected:** Expired token is rejected; re-invitation replaces the token hash; only the new link works.
+
+### G-15 — Invitation delivery limitation
+- **What:** Verify generated links can be shared manually and are not automatically emailed.
+- **Why:** The current deployment has no configured email provider.
+- **How:** Create an invitation, copy the returned link, and open it in a separate browser session/device reachable at APP_BASE_URL.
+- **Expected:** A one-time URL is generated and can be shared manually; no automatic email is sent or reported as sent.
+
+---
 ## H. Role-specific workflows and governance
 
 Detailed cases will be added as the remaining roles are implemented. Preserve all 80 existing role records across Learner, Organizer, Moderator, Reviewer, Mentor, Judge, Admin, and Support. Verify allowed and denied actions against the approved access matrix; do not assume every level in a category has identical permissions unless the approved policy says so.
