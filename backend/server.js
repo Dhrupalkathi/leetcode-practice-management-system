@@ -233,27 +233,18 @@ app.use((error,req,res,next)=>{
 });
 async function start(){
   try{
-    // Discard partial test outcomes before retrying an interrupted ordinary submission.
+    // Clear partial results and re-queue any interrupted execution, including candidate jobs.
     await pool.query(
       `DELETE FROM public.submission_test_result
        WHERE submission_id IN (
          SELECT submission_id FROM public.submission
-         WHERE execution_status='RUNNING' AND candidate_id IS NULL
+         WHERE execution_status='RUNNING'
        )`
     );
-    // A process restart can safely re-queue ordinary learner/contest jobs.
     await pool.query(
       `UPDATE public.submission
        SET execution_status='PENDING',execution_error=NULL
-       WHERE execution_status='RUNNING' AND candidate_id IS NULL`
-    );
-    // Candidate-assessment requests currently execute directly and are not part of this queue.
-    await pool.query(
-      `UPDATE public.submission
-       SET execution_status='FAILED',
-           execution_error='The assessment execution process restarted. Please submit again if the assessment is still open.'
-       WHERE candidate_id IS NOT NULL
-         AND execution_status IN ('PENDING','RUNNING')`
+       WHERE execution_status='RUNNING'`
     );
     const result=await pool.query('SELECT version() AS postgres_version');
     console.log('PostgreSQL connection successful:',result.rows[0].postgres_version);
