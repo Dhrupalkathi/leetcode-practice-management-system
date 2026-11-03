@@ -146,7 +146,8 @@ const WORKSPACE_VIEWS = {
   Judge: [{ id: 'judging', label: 'Contest reviews' }],
   Moderator: [{ id: 'contests', label: 'Contest moderation' }],
   Admin: [
-    { id: 'administration', label: 'Platform administration' },
+    { id: 'admin-overview', label: 'Platform overview' },
+    { id: 'admin-users', label: 'User management' },
     { id: 'problems', label: 'Problem management' },
     { id: 'contests', label: 'Contests' },
     { id: 'assessments', label: 'Assessments' },
@@ -163,7 +164,7 @@ function setWorkspaceView(viewId) {
   const available = [...navigation.querySelectorAll('[data-view-link]')].map(button => button.dataset.viewLink);
   if (!available.includes(viewId)) return;
   activeWorkspaceView = viewId;
-  $('#role-workspace').hidden = !['review','mentoring','support','judging','administration'].includes(viewId);
+  $('#role-workspace').hidden = !['review','mentoring','support','judging','admin-overview','admin-users'].includes(viewId);
   document.querySelectorAll('[data-view]').forEach(section => {
     section.hidden = section.dataset.view !== viewId;
   });
