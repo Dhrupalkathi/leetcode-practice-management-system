@@ -770,7 +770,103 @@ async function loadCurrentUser() {
   updateAccountUI();
 }
 
-function openForm(problem = null) {
+function renderProblemTopicOptions(selectedIds = []) {
+  const container = $('#problem-topic-options');
+  container.replaceChildren();
+  const selected = new Set(selectedIds.map(Number));
+  for (const topic of topics) {
+    const label = document.createElement('label');
+    label.className = 'topic-option';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = topic.topic_id;
+    checkbox.checked = selected.has(Number(topic.topic_id));
+    checkbox.setAttribute('aria-label', topic.name);
+    const name = document.createElement('span');
+    name.textContent = topic.name;
+    label.append(checkbox, name);
+    container.append(label);
+  }
+}
+
+function appendProblemTestCase(testCase = {}, locked = false) {
+  const container = $('#problem-test-case-list');
+  const index = container.querySelectorAll('.problem-test-case').length + 1;
+  const card = document.createElement('article');
+  card.className = 'problem-test-case';
+  const header = document.createElement('div');
+  header.className = 'problem-test-case-header';
+  const title = document.createElement('strong');
+  title.textContent = 'Test case ' + index;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'secondary remove-test-case';
+  remove.textContent = 'Remove';
+  remove.hidden = locked;
+  remove.disabled = locked;
+  remove.addEventListener('click', () => {
+    if (container.querySelectorAll('.problem-test-case').length <= 1) {
+      $('#form-error').textContent = 'Keep at least one test case.';
+      return;
+    }
+    card.remove();
+    refreshProblemTestCaseLabels();
+  });
+  header.append(title, remove);
+  const fields = document.createElement('div');
+  fields.className = 'problem-test-case-fields';
+  const inputLabel = document.createElement('label');
+  inputLabel.textContent = 'Input data';
+  const input = document.createElement('textarea');
+  input.className = 'problem-test-input';
+  input.rows = 4;
+  input.maxLength = 50000;
+  input.required = true;
+  input.value = testCase.input_data || '';
+  input.disabled = locked;
+  inputLabel.append(input);
+  const outputLabel = document.createElement('label');
+  outputLabel.textContent = 'Expected output';
+  const output = document.createElement('textarea');
+  output.className = 'problem-test-output';
+  output.rows = 4;
+  output.maxLength = 50000;
+  output.required = true;
+  output.value = testCase.expected_output || '';
+  output.disabled = locked;
+  outputLabel.append(output);
+  fields.append(inputLabel, outputLabel);
+  const visibility = document.createElement('label');
+  visibility.className = 'inline-check test-case-visibility';
+  const hidden = document.createElement('input');
+  hidden.type = 'checkbox';
+  hidden.className = 'problem-test-hidden';
+  hidden.checked = Boolean(testCase.is_hidden);
+  hidden.disabled = locked;
+  visibility.append(hidden, document.createTextNode(' Hidden from learners · used for final judging'));
+  card.append(header, fields, visibility);
+  container.append(card);
+}
+
+function refreshProblemTestCaseLabels() {
+  $('#problem-test-case-list').querySelectorAll('.problem-test-case').forEach((card, index) => {
+    card.querySelector('.problem-test-case-header strong').textContent = 'Test case ' + (index + 1);
+  });
+}
+
+function collectProblemTestCases() {
+  return [...$('#problem-test-case-list').querySelectorAll('.problem-test-case')].map((card) => ({
+    input_data: card.querySelector('.problem-test-input').value,
+    expected_output: card.querySelector('.problem-test-output').value,
+    is_hidden: card.querySelector('.problem-test-hidden').checked
+  }));
+}
+
+function collectProblemTopicIds() {
+  return [...$('#problem-topic-options').querySelectorAll('input[type=checkbox]:checked')].map((input) => Number(input.value));
+}
+
+async function openForm(problem = null) {
   $('#problem-form').reset();
   $('#form-error').textContent = '';
   $('#problem-id').value = problem?.problem_id ?? '';
@@ -782,8 +878,28 @@ function openForm(problem = null) {
   $('#output-format').value = problem?.output_format ?? '';
   $('#constraints').value = problem?.constraints ?? '';
   $('#form-panel').hidden = false;
+  $('#problem-test-case-list').replaceChildren(element('p', 'muted', 'Loading test-case editor…'));
+  $('#problem-test-cases-locked').hidden = true;
+  $('#add-problem-test-case').disabled = false;
+  renderProblemTopicOptions(problem?.topics?.map((topic) => topic.topic_id) || []);
   $('#title').focus();
   $('#form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    const managed = problem
+      ? await api('/api/problems/' + problem.problem_id + '/test-cases/manage')
+      : { test_cases: [{ input_data: '', expected_output: '', is_hidden: false }], topic_ids: [], test_cases_locked: false };
+    renderProblemTopicOptions(managed.topic_ids || []);
+    $('#problem-test-case-list').replaceChildren();
+    const locked = Boolean(managed.test_cases_locked);
+    $('#problem-test-cases-locked').hidden = !locked;
+    $('#add-problem-test-case').disabled = locked;
+    const testCases = managed.test_cases || [];
+    for (const testCase of testCases) appendProblemTestCase(testCase, locked);
+    if (testCases.length === 0) appendProblemTestCase({}, locked);
+  } catch (error) {
+    $('#problem-test-case-list').replaceChildren(element('p', 'error', error.message));
+    $('#save-button').disabled = true;
+  }
 }
 
 function addDetailField(container, label, value) {
@@ -1265,6 +1381,7 @@ $('#logout-button').addEventListener('click', async () => {
 });
 
 $('#new-button').addEventListener('click', () => openForm());
+$('#add-problem-test-case').addEventListener('click', () => appendProblemTestCase());
 $('#cancel-button').addEventListener('click', () => { $('#form-panel').hidden = true; });
 $('#detail-close').addEventListener('click', () => $('#problem-dialog').close());
 $('#progress-button').addEventListener('click', async () => {
@@ -1417,7 +1534,9 @@ $('#problem-form').addEventListener('submit', async (event) => {
     problem_statement: $('#problem-statement').value,
     input_format: $('#input-format').value,
     output_format: $('#output-format').value,
-    constraints: $('#constraints').value
+    constraints: $('#constraints').value,
+    topic_ids: collectProblemTopicIds(),
+    test_cases: collectProblemTestCases()
   };
   $('#save-button').disabled = true;
   $('#form-error').textContent = '';
