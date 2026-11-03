@@ -101,7 +101,11 @@ async function processSubmission(pool, submission, testCases, language) {
        WHERE submission_id=$4`,
       [finalVerdictId, totalTime, maximumMemory, submission.submission_id]
     );
-    await recalculateContestRegistration(pool, submission.contest_id, submission.user_id);
+    try {
+      await recalculateContestRegistration(pool, submission.contest_id, submission.user_id);
+    } catch (scoreError) {
+      console.error('Contest score recalculation failed:', scoreError.message);
+    }
   } catch (error) {
     console.error('Submission execution failed:', error.message);
     await pool.query(
