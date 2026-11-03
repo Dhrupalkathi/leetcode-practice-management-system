@@ -19,12 +19,11 @@ ALTER TABLE public.language
 -- by exact provider language name at runtime. Provider numeric IDs are not stored,
 -- because IDs can differ between hosted and self-hosted Judge0 instances.
 UPDATE public.language SET judge0_language_name = 'Python (3.8.1)' WHERE language_id = 3;
-UPDATE public.language SET judge0_language_name = 'Python (3.11.2)' WHERE language_id = 6;
-UPDATE public.language SET judge0_language_name = 'Python (3.12.5)' WHERE language_id = 7;
+-- The default CE provider does not advertise the seeded Python 3.11/3.12 versions.
+-- Keep them unmapped until a provider exposes an exact matching runtime.
 UPDATE public.language SET judge0_language_name = 'Python (3.13.2)' WHERE language_id = 8;
 UPDATE public.language SET judge0_language_name = 'Java (JDK 17.0.6)' WHERE language_id = 11;
-UPDATE public.language SET judge0_language_name = 'JavaScript (Node.js 18.15.0)' WHERE language_id = 29;
-UPDATE public.language SET judge0_language_name = 'JavaScript (Node.js 20.17.0)' WHERE language_id = 30;
+-- The default CE provider's active Node.js runtime mapping used here is 22.08.0.
 UPDATE public.language SET judge0_language_name = 'JavaScript (Node.js 22.08.0)' WHERE language_id = 31;
 UPDATE public.language SET judge0_language_name = 'C++ (GCC 14.1.0)', judge0_compile_options = '-std=c++17' WHERE language_id = 19;
 UPDATE public.language SET judge0_language_name = 'C++ (GCC 14.1.0)', judge0_compile_options = '-std=c++20' WHERE language_id = 20;
@@ -35,7 +34,7 @@ UPDATE public.language SET judge0_language_name = 'Go (1.22.0)' WHERE language_i
 UPDATE public.language SET judge0_language_name = 'Go (1.23.5)' WHERE language_id = 47;
 UPDATE public.language SET judge0_language_name = 'Ruby (2.7.0)' WHERE language_id = 72;
 UPDATE public.language SET judge0_language_name = 'PHP (7.4.1)' WHERE language_id = 77;
-UPDATE public.language SET judge0_language_name = 'TypeScript (5.0.3)' WHERE language_id = 34;
+-- Do not map TypeScript 5.0.3 to a different provider version.
 
 DO $migration$
 BEGIN
