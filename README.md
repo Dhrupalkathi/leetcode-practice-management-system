@@ -49,15 +49,19 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f datab
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/005_company_assessments.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/006_user_registration.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/007_governance_workflows.sql
+psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/008_notifications.sql
+psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/009_submission_worker_leases.sql
 ```
 
 - Migration 001 adds `problem_statement` and identity generation for new problem IDs beginning at 81.
 - Migration 002 widens the password hash field and creates the PostgreSQL session table.
-- Migration 003 adds asynchronous execution state, exact Judge0 language mappings, submission ID generation and per-test outcomes. PostgreSQL stores pending jobs; worker processes claim learner, contest and candidate-assessment jobs with `FOR UPDATE SKIP LOCKED` and can recover interrupted jobs after a server restart.
+- Migration 003 adds asynchronous execution state, exact Judge0 language mappings, submission ID generation and per-test outcomes. PostgreSQL stores pending jobs; worker processes claim learner, contest and candidate-assessment jobs with `FOR UPDATE SKIP LOCKED`.
 - Migration 004 links future submissions to contests, adds contest creator attribution and configurable scoring fields.
 - Migration 005 adds organization ownership for assessments, invitation token hashes/expiry and candidate-linked submissions.
 - Migration 006 adds identity generation for future user IDs without changing seeded users.
 - Migration 007 adds problem review status/history, Mentor feedback, Support tickets, Judge reviews, suspicious-activity indicators and audit history.
+- Migration 008 adds in-app notifications for workflow events.
+- Migration 009 adds worker leases so abandoned RUNNING submissions are safely re-queued after a worker stops; active workers renew their lease while processing each test case. Apply this migration before starting the updated worker code.
 
 **Never run `schema_with_data_fixed.sql` against the populated database.** It contains destructive `DROP TABLE ... CASCADE` statements.
 
