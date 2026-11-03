@@ -151,6 +151,99 @@ async function loadReviewQueue() {
   } catch(error){container.append(element('p','error',error.message));}
 }
 
+function renderAdminReportSummary(summary) {
+  const container = $('#admin-report-summary');
+  container.replaceChildren();
+  const cards = [
+    ['Total users', summary.total_users],
+    ['Active accounts', summary.active_users],
+    ['Active submitters · 30d', summary.active_submitters_30d],
+    ['Published problems', summary.published_problems],
+    ['Pending problem reviews', summary.pending_problem_reviews],
+    ['Completed submissions', summary.completed_submissions],
+    ['Accepted submissions', summary.accepted_submissions],
+    ['Total contests', summary.total_contests],
+    ['Live contests', summary.live_contests],
+    ['Total assessments', summary.total_assessments],
+    ['Live assessments', summary.live_assessments],
+    ['Completed assessment attempts', summary.completed_assessment_attempts]
+  ];
+  for (const [label, value] of cards) {
+    const card = element('article','admin-report-card');
+    card.append(element('span','admin-report-label',label));
+    card.append(element('strong','admin-report-value',String(value ?? 0)));
+    container.append(card);
+  }
+}
+
+function renderAdminProblemReport(container, problems, metricLabel) {
+  container.replaceChildren();
+  if (!problems.length) {
+    container.append(element('p','muted','No qualifying practice submissions are available yet.'));
+    return;
+  }
+  for (const problem of problems) {
+    const row = element('article','admin-report-problem');
+    row.append(element('strong','', '#' + problem.problem_id + ' · ' + problem.title));
+    row.append(element('span','', problem.completed_submissions + ' completed attempts'));
+    row.append(element('span','admin-report-rate',
+      (problem.acceptance_rate == null ? '—' : Number(problem.acceptance_rate).toFixed(1) + '%') + ' acceptance'));
+    container.append(row);
+  }
+}
+
+function renderAdminDailyActivity(items) {
+  const container = $('#admin-daily-activity');
+  container.replaceChildren();
+  if (!items.length) { container.append(element('p','muted','No activity data is available.')); return; }
+  const maximum = Math.max(1, ...items.map((item) => Number(item.submissions) || 0));
+  for (const item of items) {
+    const row = element('div','admin-activity-row');
+    const day = element('span','admin-activity-day',String(item.activity_day).slice(5,10));
+    const track = element('div','admin-activity-track');
+    const fill = element('div','admin-activity-fill');
+    const count = Number(item.submissions) || 0;
+    fill.style.width = Math.max(0, count / maximum * 100) + '%';
+    fill.title = count + ' practice submissions';
+    track.append(fill);
+    row.append(day,track,element('strong','admin-activity-count',String(count)));
+    container.append(row);
+  }
+}
+
+function renderAdminAssessmentActivity(items) {
+  const container = $('#admin-assessment-activity');
+  container.replaceChildren();
+  if (!items.length) { container.append(element('p','muted','No company assessments have been created.')); return; }
+  for (const item of items) {
+    const row = element('article','admin-assessment-row');
+    const status = Date.now() < new Date(item.start_time).getTime()
+      ? 'Upcoming' : Date.now() < new Date(item.end_time).getTime() ? 'Live' : 'Ended';
+    row.append(element('strong','',item.title));
+    row.append(element('span','muted',(item.organization_name || 'Unassigned organization') + ' · ' + status));
+    row.append(element('span','',item.invited_candidates + ' invited · ' + item.started_candidates + ' started · ' + item.completed_candidates + ' completed'));
+    row.append(element('span','admin-report-rate',item.average_completed_score == null
+      ? 'No completed scores yet' : 'Average completed score: ' + Number(item.average_completed_score).toFixed(1) + '%'));
+    container.append(row);
+  }
+}
+
+async function loadAdminReports() {
+  const meta = $('#admin-reports-meta');
+  meta.textContent = 'Loading aggregate platform reports…';
+  try {
+    const payload = await api('/api/admin/reports');
+    renderAdminReportSummary(payload.summary || {});
+    renderAdminDailyActivity(payload.daily_activity || []);
+    renderAdminProblemReport($('#admin-popular-problems'),payload.popular_problems || [],'attempted');
+    renderAdminProblemReport($('#admin-low-success-problems'),payload.low_success_problems || [],'acceptance');
+    renderAdminAssessmentActivity(payload.assessment_activity || []);
+    meta.textContent = 'Generated ' + new Date(payload.generated_at).toLocaleString() +
+      ' · Active submitters use a rolling 30-day window; daily bars show practice submissions.';
+  } catch (error) {
+    meta.textContent = error.message;
+  }
+}
 async function loadAdminUsers() {
   const container=$('#admin-user-list');
   container.replaceChildren(element('p','muted','Loading accounts…'));
@@ -288,7 +381,7 @@ async function loadRoleWorkspace() {
   if(['Reviewer','Admin'].includes(category))await loadReviewQueue();
   if(['Mentor','Learner','Admin'].includes(category))await loadMentorFeedback();
   await loadSupportTickets();
-  if(category==='Admin'){await loadAdminUsers();await loadAdminAudit();}
+  if(category==='Admin'){await loadAdminReports();await loadAdminUsers();await loadAdminAudit();}
 }
 
 function render() {
@@ -1420,6 +1513,7 @@ $('#workspace-refresh').addEventListener('click',loadRoleWorkspace);
 $('#review-queue-refresh').addEventListener('click',loadReviewQueue);
 $('#mentor-feedback-refresh').addEventListener('click',loadMentorFeedback);
 $('#support-refresh').addEventListener('click',loadSupportTickets);
+$('#admin-reports-refresh').addEventListener('click',loadAdminReports);
 $('#admin-users-refresh').addEventListener('click',loadAdminUsers);
 $('#admin-audit-refresh').addEventListener('click',loadAdminAudit);
 $('#admin-user-search').addEventListener('submit',async(event)=>{event.preventDefault();await loadAdminUsers();});
