@@ -212,8 +212,8 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
-app.use('/api', createProblemDiscoveryRouter({ pool, authRequired, allowRoles, audit: governanceRouter.audit }));
 app.use('/api', governanceRouter);
+app.use('/api', createProblemDiscoveryRouter({ pool, authRequired, allowRoles, audit: governanceRouter.audit }));
 app.use('/api', createSubmissionRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createProgressRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createContestRouter({ pool, authRequired, allowRoles }));
