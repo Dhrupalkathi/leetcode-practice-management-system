@@ -157,3 +157,18 @@
 .profile-password-section h3{margin:0;font-size:15px}
 .profile-password-section .profile-form{margin-top:12px}
 @media(max-width:700px){.profile-form{grid-template-columns:1fr}}
+
+
+/* In-app notification inbox */
+.notification-button{display:inline-flex;align-items:center;gap:7px}
+.notification-unread{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#a7f3d0;color:#09251c;font-size:9px;font-weight:900}
+.notification-panel{margin-top:-10px}
+.notification-panel-actions{display:flex;gap:8px;flex-wrap:wrap}
+.notifications-list{display:grid;gap:9px;margin-top:12px}
+.notification-card{display:grid;gap:6px;padding:13px;border:1px solid #38516e;border-left:3px solid #a7f3d0;border-radius:10px;background:#0b1427}
+.notification-card.is-read{border-left-color:#465875;opacity:.82}
+.notification-title{font-size:13px;color:#e3edf9}
+.notification-message{margin:0;color:#bac9df;font-size:12px;line-height:1.55}
+.notification-meta{color:#8194b4;font-size:10px;text-transform:capitalize}
+.notification-mark-read{justify-self:start;padding:7px 10px;font-size:10px}
+@media(max-width:700px){.notification-panel-actions{width:100%}.notification-panel-actions button{flex:1}}
