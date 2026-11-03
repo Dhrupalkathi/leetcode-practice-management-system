@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: leetcode-practice-management-system
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health/db
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: APP_BASE_URL
+        sync: false
+      - key: JUDGE0_BASE_URL
+        value: https://ce.judge0.com
+      - key: SUBMISSION_WORKER_CONCURRENCY
+        value: "1"
+      - key: SUBMISSION_WORKER_POLL_MS
+        value: "500"
