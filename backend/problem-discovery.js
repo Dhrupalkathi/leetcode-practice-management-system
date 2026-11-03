@@ -1,14 +1,32 @@
 const express = require('express');
 
-function validProblem(body) {
+function validateProblem(body) {
   const errors=[];
+  const fields={};
   for(const field of ['title','problem_statement','input_format','output_format','difficulty']){
     if(typeof body[field]!=='string'||!body[field].trim()) errors.push(field+' is required.');
+    else fields[field]=body[field].trim();
   }
-  if(typeof body.title==='string'&&body.title.trim().length>150) errors.push('Title must be 150 characters or fewer.');
-  if(!['Easy','Medium','Hard'].includes(body.difficulty)) errors.push('Difficulty must be Easy, Medium, or Hard.');
+  if(fields.title&&fields.title.length>150) errors.push('Title must be 150 characters or fewer.');
+  if(!['Easy','Medium','Hard'].includes(fields.difficulty)) errors.push('Difficulty must be Easy, Medium, or Hard.');
   if(body.constraints!==undefined&&body.constraints!==null&&typeof body.constraints!=='string') errors.push('Constraints must be text or null.');
-  return errors;
+  fields.constraints=typeof body.constraints==='string'?body.constraints.trim():null;
+  const topicIds=Array.isArray(body.topic_ids)?body.topic_ids.map(Number):[];
+  if(!topicIds.length||topicIds.some((id)=>!Number.isSafeInteger(id)||id<=0)||new Set(topicIds).size!==topicIds.length){
+    errors.push('Select at least one valid, unique topic.');
+  }
+  const testCases=Array.isArray(body.test_cases)?body.test_cases:[];
+  if(testCases.length<1||testCases.length>100) errors.push('Add between 1 and 100 test cases.');
+  for(let i=0;i<testCases.length;i++){
+    const item=testCases[i];
+    if(!item||typeof item.input_data!=='string'||typeof item.expected_output!=='string'){
+      errors.push('Each test case needs input data and expected output.');
+      break;
+    }
+    if(typeof item.is_hidden!=='boolean'){errors.push('Each test case must specify whether it is hidden.');break;}
+    if(item.input_data.length>50000||item.expected_output.length>50000){errors.push('Each test case input/output must be 50000 characters or fewer.');break;}
+  }
+  return {errors,fields,topicIds,testCases};
 }
 
 module.exports = function createProblemDiscoveryRouter({ pool, authRequired, allowRoles, audit }) {
@@ -79,51 +97,128 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     } catch(error){next(error);}
   });
 
-  router.post('/problems', authRequired, allowRoles('Organizer'), async (req,res,next) => {
-    const errors=validProblem(req.body);
-    if(errors.length) return res.status(400).json({error:'Validation failed.',details:errors});
-    if(!req.user.organizer_id) return res.status(403).json({error:'Organizer profile is missing.'});
+  async function validateTopicIds(topicIds) {
+    const result=await pool.query('SELECT topic_id FROM public.topic WHERE topic_id=ANY($1::integer[])',[topicIds]);
+    return result.rowCount===topicIds.length;
+  }
+
+  async function addProblemRelations(client,problemId,topicIds,testCases) {
+    for(const topicId of topicIds){
+      await client.query('INSERT INTO public.problem_topic(problem_id,topic_id) VALUES($1,$2)',[problemId,topicId]);
+    }
+    for(let index=0;index<testCases.length;index++){
+      const item=testCases[index];
+      await client.query(
+        `INSERT INTO public.test_case(problem_id,test_case_id,input_data,expected_output,is_hidden)
+         VALUES($1,$2,$3,$4,$5)`,
+        [problemId,index+1,item.input_data,item.expected_output,item.is_hidden]
+      );
+    }
+  }
+
+  router.get('/problems/:id/test-cases/manage', authRequired, allowRoles('Organizer','Reviewer','Admin'), async (req,res,next) => {
+    const id=Number(req.params.id);
+    if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid problem ID.'});
     try {
-      const result=await pool.query(
+      const problem=await pool.query('SELECT problem_id,created_by FROM public.problem WHERE problem_id=$1',[id]);
+      if(!problem.rowCount) return res.status(404).json({error:'Problem not found.'});
+      if(req.user.role_category==='Organizer'&&Number(req.user.organizer_id)!==Number(problem.rows[0].created_by)){
+        return res.status(404).json({error:'Problem not found.'});
+      }
+      const [tests,topics]=await Promise.all([
+        pool.query('SELECT test_case_id,input_data,expected_output,is_hidden FROM public.test_case WHERE problem_id=$1 ORDER BY test_case_id',[id]),
+        pool.query('SELECT topic_id FROM public.problem_topic WHERE problem_id=$1 ORDER BY topic_id',[id])
+      ]);
+      res.json({test_cases:tests.rows,topic_ids:topics.rows.map((row)=>row.topic_id)});
+    } catch(error){next(error);}
+  });
+
+  router.post('/problems', authRequired, allowRoles('Organizer'), async (req,res,next) => {
+    const input=validateProblem(req.body);
+    if(input.errors.length) return res.status(400).json({error:'Validation failed.',details:input.errors});
+    if(!req.user.organizer_id) return res.status(403).json({error:'Organizer profile is missing.'});
+    const topicsValid=await validateTopicIds(input.topicIds);
+    if(!topicsValid) return res.status(400).json({error:'One or more selected topics do not exist.'});
+    const client=await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const created=await client.query(
         `INSERT INTO public.problem
           (title,problem_statement,input_format,output_format,constraints,difficulty,created_by,is_active,review_status)
          VALUES($1,$2,$3,$4,$5,$6,$7,FALSE,'PENDING_REVIEW')
          RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
                    difficulty,is_active,review_status,created_at,created_by`,
-        [req.body.title.trim(),req.body.problem_statement.trim(),req.body.input_format.trim(),
-         req.body.output_format.trim(),req.body.constraints?.trim()||null,req.body.difficulty,req.user.organizer_id]
+        [input.fields.title,input.fields.problem_statement,input.fields.input_format,input.fields.output_format,
+         input.fields.constraints,input.fields.difficulty,req.user.organizer_id]
       );
-      if(audit) await audit(req.user.user_id,'PROBLEM_SUBMITTED_FOR_REVIEW','problem',result.rows[0].problem_id,{title:result.rows[0].title});
-      res.status(201).json({problem:result.rows[0],message:'Problem submitted for Reviewer approval.'});
+      await addProblemRelations(client,created.rows[0].problem_id,input.topicIds,input.testCases);
+      await client.query('COMMIT');
+      if(audit) await audit(req.user.user_id,'PROBLEM_SUBMITTED_FOR_REVIEW','problem',created.rows[0].problem_id,{title:created.rows[0].title,topic_ids:input.topicIds,test_case_count:input.testCases.length});
+      res.status(201).json({problem:created.rows[0],message:'Problem and test cases submitted for Reviewer approval.'});
     } catch(error){
+      await client.query('ROLLBACK');
       if(error.code==='23505') return res.status(409).json({error:'A problem with that title already exists.'});
       next(error);
-    }
+    } finally {client.release();}
   });
 
   router.put('/problems/:id', authRequired, allowRoles('Organizer','Admin'), async (req,res,next) => {
     const id=Number(req.params.id);
     if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid problem ID.'});
-    const errors=validProblem(req.body);
-    if(errors.length) return res.status(400).json({error:'Validation failed.',details:errors});
+    const input=validateProblem(req.body);
+    if(input.errors.length) return res.status(400).json({error:'Validation failed.',details:input.errors});
+    if(!await validateTopicIds(input.topicIds)) return res.status(400).json({error:'One or more selected topics do not exist.'});
+    const client=await pool.connect();
     try {
-      const result=await pool.query(
+      await client.query('BEGIN');
+      const current=await client.query(
+        `SELECT problem_id,created_by FROM public.problem WHERE problem_id=$1
+         AND ($2::text='Admin' OR created_by=$3::integer) FOR UPDATE`,
+        [id,req.user.role_category,req.user.organizer_id]
+      );
+      if(!current.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'Problem not found.'});}
+      const existingTests=await client.query(
+        'SELECT test_case_id,input_data,expected_output,is_hidden FROM public.test_case WHERE problem_id=$1 ORDER BY test_case_id',[id]
+      );
+      const submissions=await client.query('SELECT 1 FROM public.submission WHERE problem_id=$1 LIMIT 1',[id]);
+      const sameTests=JSON.stringify(existingTests.rows.map((row)=>({input_data:row.input_data,expected_output:row.expected_output,is_hidden:row.is_hidden})))===
+        JSON.stringify(input.testCases.map((row)=>({input_data:row.input_data,expected_output:row.expected_output,is_hidden:row.is_hidden})));
+      if(submissions.rowCount&&!sameTests){
+        await client.query('ROLLBACK');
+        return res.status(409).json({error:'Test cases are locked because this problem has submission history. Create a new problem version instead of changing past judging data.'});
+      }
+      const updated=await client.query(
         `UPDATE public.problem
          SET title=$1,problem_statement=$2,input_format=$3,output_format=$4,
              constraints=$5,difficulty=$6,is_active=FALSE,review_status='PENDING_REVIEW'
-         WHERE problem_id=$7 AND ($8::text='Admin' OR created_by=$9::integer)
+         WHERE problem_id=$7
          RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
                    difficulty,is_active,review_status,created_at,created_by`,
-        [req.body.title.trim(),req.body.problem_statement.trim(),req.body.input_format.trim(),
-         req.body.output_format.trim(),req.body.constraints?.trim()||null,req.body.difficulty,id,req.user.role_category,req.user.organizer_id]
+        [input.fields.title,input.fields.problem_statement,input.fields.input_format,input.fields.output_format,
+         input.fields.constraints,input.fields.difficulty,id]
       );
-      if(!result.rowCount) return res.status(404).json({error:'Problem not found.'});
-      if(audit) await audit(req.user.user_id,'PROBLEM_UPDATE_SUBMITTED_FOR_REVIEW','problem',id,{title:result.rows[0].title});
-      res.json({problem:result.rows[0],message:'Changes saved and sent for Reviewer approval.'});
+      await client.query('DELETE FROM public.problem_topic WHERE problem_id=$1',[id]);
+      for(const topicId of input.topicIds){
+        await client.query('INSERT INTO public.problem_topic(problem_id,topic_id) VALUES($1,$2)',[id,topicId]);
+      }
+      if(!submissions.rowCount){
+        await client.query('DELETE FROM public.test_case WHERE problem_id=$1',[id]);
+        for(let index=0;index<input.testCases.length;index++){
+          const item=input.testCases[index];
+          await client.query(
+            'INSERT INTO public.test_case(problem_id,test_case_id,input_data,expected_output,is_hidden) VALUES($1,$2,$3,$4,$5)',
+            [id,index+1,item.input_data,item.expected_output,item.is_hidden]
+          );
+        }
+      }
+      await client.query('COMMIT');
+      if(audit) await audit(req.user.user_id,'PROBLEM_UPDATE_SUBMITTED_FOR_REVIEW','problem',id,{title:updated.rows[0].title,topic_ids:input.topicIds,test_case_count:input.testCases.length});
+      res.json({problem:updated.rows[0],message:'Problem content and topics saved; sent for Reviewer approval.'});
     } catch(error){
+      await client.query('ROLLBACK');
       if(error.code==='23505') return res.status(409).json({error:'A problem with that title already exists.'});
       next(error);
-    }
+    } finally {client.release();}
   });
 
   router.patch('/problems/:id/retire', authRequired, allowRoles('Organizer','Admin'), async (req,res,next) => {
