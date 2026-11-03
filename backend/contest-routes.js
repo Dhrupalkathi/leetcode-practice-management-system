@@ -133,7 +133,7 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
     } finally { client.release(); }
   });
 
-  router.put('/contests/:id', authRequired, allowRoles('Organizer'), async (req, res, next) => {
+  router.put('/contests/:id', authRequired, allowRoles('Organizer', 'Admin'), async (req, res, next) => {
     const contestId = validId(req.params.id);
     if (!contestId) return res.status(400).json({ error: 'Invalid contest ID.' });
     const input = validateContest(req.body);
