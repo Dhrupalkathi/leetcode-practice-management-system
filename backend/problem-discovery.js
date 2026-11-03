@@ -101,7 +101,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     }
   });
 
-  router.put('/problems/:id', authRequired, allowRoles('Organizer'), async (req,res,next) => {
+  router.put('/problems/:id', authRequired, allowRoles('Organizer','Admin'), async (req,res,next) => {
     const id=Number(req.params.id);
     if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid problem ID.'});
     const errors=validProblem(req.body);
@@ -111,11 +111,11 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
         `UPDATE public.problem
          SET title=$1,problem_statement=$2,input_format=$3,output_format=$4,
              constraints=$5,difficulty=$6,is_active=FALSE,review_status='PENDING_REVIEW'
-         WHERE problem_id=$7
+         WHERE problem_id=$7 AND ($8::text='Admin' OR created_by=$9::integer)
          RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
                    difficulty,is_active,review_status,created_at,created_by`,
         [req.body.title.trim(),req.body.problem_statement.trim(),req.body.input_format.trim(),
-         req.body.output_format.trim(),req.body.constraints?.trim()||null,req.body.difficulty,id]
+         req.body.output_format.trim(),req.body.constraints?.trim()||null,req.body.difficulty,id,req.user.role_category,req.user.organizer_id]
       );
       if(!result.rowCount) return res.status(404).json({error:'Problem not found.'});
       if(audit) await audit(req.user.user_id,'PROBLEM_UPDATE_SUBMITTED_FOR_REVIEW','problem',id,{title:result.rows[0].title});
@@ -126,13 +126,14 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     }
   });
 
-  router.patch('/problems/:id/retire', authRequired, allowRoles('Organizer'), async (req,res,next) => {
+  router.patch('/problems/:id/retire', authRequired, allowRoles('Organizer','Admin'), async (req,res,next) => {
     const id=Number(req.params.id);
     if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid problem ID.'});
     try {
       const result=await pool.query(
         `UPDATE public.problem SET is_active=FALSE,review_status='RETIRED'
-         WHERE problem_id=$1 RETURNING problem_id,title,is_active,review_status`,[id]
+         WHERE problem_id=$1 AND ($2::text='Admin' OR created_by=$3::integer)
+         RETURNING problem_id,title,is_active,review_status`,[id,req.user.role_category,req.user.organizer_id]
       );
       if(!result.rowCount) return res.status(404).json({error:'Problem not found.'});
       if(audit) await audit(req.user.user_id,'PROBLEM_RETIRED','problem',id,{title:result.rows[0].title});
