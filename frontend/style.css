@@ -227,3 +227,13 @@
 .candidate-score strong{font-size:28px;color:#a7f3d0}
 @media(max-width:850px){.candidate-workspace{grid-template-columns:1fr}.candidate-problem-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.candidate-problem-list{grid-template-columns:1fr}.candidate-start-panel{align-items:flex-start;flex-direction:column}.candidate-timer-panel{flex-wrap:wrap}}
+
+
+/* Learner self-registration */
+.signup-divider{display:flex;align-items:center;gap:12px;margin:22px 0 12px;color:#7185a4;font-size:10px}
+.signup-divider::before,.signup-divider::after{content:"";height:1px;flex:1;background:#293954}
+.signup-details{border:1px solid #2b405e;border-radius:10px;background:#0b1427;padding:13px 15px}
+.signup-details summary{color:#bfe8dc;font-size:12px;font-weight:750;cursor:pointer}
+.signup-details[open] summary{margin-bottom:6px}
+.signup-form{margin-top:12px}
+.signup-form .wide{grid-column:1/-1}
