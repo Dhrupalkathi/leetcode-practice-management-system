@@ -821,7 +821,6 @@ function appendProblemTestCase(testCase = {}, locked = false) {
   input.className = 'problem-test-input';
   input.rows = 4;
   input.maxLength = 50000;
-  input.required = true;
   input.value = testCase.input_data || '';
   input.disabled = locked;
   inputLabel.append(input);
@@ -831,7 +830,6 @@ function appendProblemTestCase(testCase = {}, locked = false) {
   output.className = 'problem-test-output';
   output.rows = 4;
   output.maxLength = 50000;
-  output.required = true;
   output.value = testCase.expected_output || '';
   output.disabled = locked;
   outputLabel.append(output);
@@ -869,6 +867,7 @@ function collectProblemTopicIds() {
 async function openForm(problem = null) {
   $('#problem-form').reset();
   $('#form-error').textContent = '';
+  $('#save-button').disabled = false;
   $('#problem-id').value = problem?.problem_id ?? '';
   $('#form-title').textContent = problem ? 'Edit problem #' + problem.problem_id : 'Create a problem';
   $('#title').value = problem?.title ?? '';
