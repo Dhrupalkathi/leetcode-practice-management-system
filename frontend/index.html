@@ -22,6 +22,9 @@
     </div>
   </header>
 
+  <nav id="workspace-navigation" class="workspace-navigation" aria-label="Workspace sections" hidden></nav>
+  <p id="workspace-page-heading" class="workspace-page-heading" aria-live="polite">Problem Library</p>
+
   <section id="notification-panel" class="workspace-card notification-panel" hidden>
     <div class="section-heading">
       <div><p class="eyebrow">YOUR ACTIVITY</p><h2>Notifications</h2></div>
@@ -101,7 +104,7 @@
     <p id="notice" class="notice" role="status" aria-live="polite"></p>
   </section>
 
-  <section id="progress-panel" class="progress-panel" hidden>
+  <section id="progress-panel" class="progress-panel" data-view="dashboard" hidden>
     <div class="section-heading">
       <div><p class="eyebrow">LEARNER DASHBOARD</p><h2>Your progress</h2></div>
       <button id="progress-refresh" class="secondary" type="button">↻ Refresh</button>
@@ -139,7 +142,7 @@
       </article>
     </div>
   </section>
-  <section id="form-panel" class="form-panel" hidden>
+  <section id="form-panel" class="form-panel" data-view="problems" hidden>
     <div class="section-heading">
       <div><p class="eyebrow">PROBLEM EDITOR</p><h2 id="form-title">Create a problem</h2></div>
       <button id="cancel-button" class="secondary" type="button">Close</button>
@@ -172,7 +175,7 @@
     </form>
   </section>
 
-  <section class="list-section">
+  <section class="list-section" data-view="problems">
     <div class="list-heading">
       <div><p class="eyebrow">DATABASE RECORDS</p><h2>Problems <span id="count" class="count">—</span></h2></div>
       <span class="muted">PostgreSQL · leetcode</span>
@@ -180,7 +183,7 @@
     <div id="problem-list" class="problem-list"><p class="empty">Loading problems…</p></div>
   </section>
 
-  <section id="contest-section" class="contest-section">
+  <section id="contest-section" class="contest-section" data-view="contests">
     <div class="section-heading">
       <div><p class="eyebrow">COMPETITIVE PROGRAMMING</p><h2>Contests</h2></div>
       <button id="create-contest-button" type="button" hidden>＋ Create contest</button>
@@ -189,7 +192,7 @@
     <div id="contest-list" class="contest-list"><p class="empty">Loading contests…</p></div>
   </section>
 
-  <section id="contest-editor" class="form-panel" hidden>
+  <section id="contest-editor" class="form-panel" data-view="contests" hidden>
     <div class="section-heading">
       <div><p class="eyebrow">CONTEST SETUP</p><h2 id="contest-form-title">Create a contest</h2></div>
       <button id="contest-cancel" class="secondary" type="button">Close</button>
@@ -251,7 +254,7 @@
     </section>
   </dialog>
 
-  <section id="assessment-section" class="assessment-section">
+  <section id="assessment-section" class="assessment-section" data-view="assessments">
     <div class="section-heading">
       <div><p class="eyebrow">COMPANY / HIRING WORKFLOWS</p><h2>Technical assessments</h2></div>
       <button id="create-assessment-button" type="button" hidden>＋ Create assessment</button>
@@ -260,7 +263,7 @@
     <div id="assessment-list" class="assessment-list"><p class="empty">Loading assessments…</p></div>
   </section>
 
-  <section id="assessment-editor" class="form-panel" hidden>
+  <section id="assessment-editor" class="form-panel" data-view="assessments" hidden>
     <div class="section-heading">
       <div><p class="eyebrow">ASSESSMENT SETUP</p><h2 id="assessment-form-title">Create assessment</h2></div>
       <button id="assessment-cancel" class="secondary" type="button">Close</button>
@@ -323,13 +326,13 @@
     </div>
     <p class="intro-copy">Tools in this area are shown according to your assigned role. Actions are enforced by the server, not only by the interface.</p>
 
-    <section id="reviewer-panel" class="workspace-card" hidden>
+    <section id="reviewer-panel" class="workspace-card" data-view="review" hidden>
       <div class="section-heading"><div><p class="eyebrow">CONTENT GOVERNANCE</p><h3>Problem review queue</h3></div><button id="review-queue-refresh" class="secondary" type="button">Refresh queue</button></div>
       <p class="muted">Reviewers can approve a problem for publication, request changes, or reject it. Only approved problems become public.</p>
       <div id="review-queue" class="workspace-list"></div>
     </section>
 
-    <section id="mentor-panel" class="workspace-card" hidden>
+    <section id="mentor-panel" class="workspace-card" data-view="mentoring" hidden>
       <div class="section-heading"><div><p class="eyebrow">LEARNER GUIDANCE</p><h3>Mentor feedback</h3></div><button id="mentor-feedback-refresh" class="secondary" type="button">Refresh feedback</button></div>
       <form id="mentor-feedback-form" class="workspace-form" hidden>
         <label>Learner user ID<input id="mentor-learner-id" type="number" min="1" required></label>
@@ -341,7 +344,7 @@
       <div id="mentor-feedback-list" class="workspace-list"></div>
     </section>
 
-    <section id="support-panel" class="workspace-card" hidden>
+    <section id="support-panel" class="workspace-card" data-view="support" hidden>
       <div class="section-heading"><div><p class="eyebrow">HELP AND SERVICE</p><h3>Support tickets</h3></div><button id="support-refresh" class="secondary" type="button">Refresh tickets</button></div>
       <form id="support-ticket-form" class="workspace-form">
         <label>Subject<input id="support-subject" maxlength="160" required></label>
@@ -356,7 +359,7 @@
       </section>
     </section>
 
-    <section id="judge-panel" class="workspace-card" hidden>
+    <section id="judge-panel" class="workspace-card" data-view="judging" hidden>
       <div class="section-heading"><div><p class="eyebrow">CONTEST GOVERNANCE</p><h3>Judge result review</h3></div></div>
       <form id="judge-review-form" class="workspace-form">
         <label>Contest ID<input id="judge-contest-id" type="number" min="1" required></label>
@@ -368,7 +371,7 @@
       <div id="judge-review-results" class="workspace-list"></div>
     </section>
 
-    <section id="admin-panel" class="workspace-card" hidden>
+    <section id="admin-panel" class="workspace-card" data-view="administration" hidden>
       <section class="admin-reports-section">
         <div class="section-heading">
           <div><p class="eyebrow">PLATFORM ANALYTICS</p><h3>Platform overview</h3></div>
