@@ -581,7 +581,21 @@ Run these stages in order. Record test date, account and role, steps performed, 
 
 
 
-### H-07 — Organizer retires a published problem
+### H-07 — Organizer can read reviewer feedback
+
+- **What:** Open a problem with review decisions as its owning Organizer, as a different Organizer, as Reviewer, and as Learner.
+- **Why:** Organizers need actionable feedback to correct and resubmit content, while review history must remain scoped to authorized users.
+- **How:** As the owning Organizer, open the problem details and inspect the Review feedback section. Confirm reviewer name, decision, timestamp, and comments appear in newest-first order. Repeat with a different Organizer and a Learner account.
+- **Expected:** The owning Organizer and Admin can read the complete review history. A different Organizer cannot retrieve it; Learners do not see the review-history section. Empty history displays a clear empty state, and comments render as text rather than executable markup.
+
+### H-08 — Retired and unpublished problem visibility is restricted
+
+- **What:** Attempt to list and open RETIRED, PENDING_REVIEW, CHANGES_REQUESTED, and REJECTED problems as an owning Organizer, another Organizer, Reviewer, Admin, Learner, and Guest.
+- **Why:** Draft, rejected, and retired content must not leak through list or detail endpoints.
+- **How:** Exercise GET /api/problems?includeInactive=true and GET /api/problems/:id for each account; compare API responses with the problem list and details UI.
+- **Expected:** Reviewer/Admin can inspect these states; only the owning Organizer can inspect their own non-public content; other Organizers, Learners, and Guests cannot retrieve it. Existing public active problems remain discoverable.
+
+### H-09 — Organizer retires a published problem
 
 - **What:** Retire a previously published problem.
 
