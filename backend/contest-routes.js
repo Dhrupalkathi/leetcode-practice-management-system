@@ -34,15 +34,16 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
     try {
       const result = await pool.query(
         `SELECT c.contest_id, c.name, c.start_time, c.end_time, c.rules,
-                c.created_at, c.organizer_id, u.name AS organizer_name,
+                c.created_at, c.organizer_id, COALESCE(organizer_user.name, creator_user.name, 'Platform') AS organizer_name,
                 (SELECT COUNT(*)::integer FROM public.includes i WHERE i.contest_id=c.contest_id) AS problem_count,
                 (SELECT COUNT(*)::integer FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id) AS participant_count,
                 EXISTS(SELECT 1 FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id AND cr.learner_id=$1) AS is_registered,
                 CASE WHEN CURRENT_TIMESTAMP < c.start_time THEN 'UPCOMING'
                      WHEN CURRENT_TIMESTAMP < c.end_time THEN 'LIVE' ELSE 'ENDED' END AS contest_status
          FROM public.contest c
-         JOIN public.organizer o ON o.organizer_id=c.organizer_id
-         JOIN public.users u ON u.user_id=o.organizer_id
+         LEFT JOIN public.organizer o ON o.organizer_id=c.organizer_id
+         LEFT JOIN public.users organizer_user ON organizer_user.user_id=o.organizer_id
+         LEFT JOIN public.users creator_user ON creator_user.user_id=c.created_by_user_id
          ORDER BY c.start_time DESC, c.contest_id DESC`,
         [req.session.userId || null]
       );
@@ -56,14 +57,15 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
     try {
       const result = await pool.query(
         `SELECT c.contest_id, c.name, c.start_time, c.end_time, c.rules,
-                c.created_at, c.organizer_id, u.name AS organizer_name,
+                c.created_at, c.organizer_id, COALESCE(organizer_user.name, creator_user.name, 'Platform') AS organizer_name,
                 (SELECT COUNT(*)::integer FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id) AS participant_count,
                 EXISTS(SELECT 1 FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id AND cr.learner_id=$2) AS is_registered,
                 CASE WHEN CURRENT_TIMESTAMP < c.start_time THEN 'UPCOMING'
                      WHEN CURRENT_TIMESTAMP < c.end_time THEN 'LIVE' ELSE 'ENDED' END AS contest_status
          FROM public.contest c
-         JOIN public.organizer o ON o.organizer_id=c.organizer_id
-         JOIN public.users u ON u.user_id=o.organizer_id
+         LEFT JOIN public.organizer o ON o.organizer_id=c.organizer_id
+         LEFT JOIN public.users organizer_user ON organizer_user.user_id=o.organizer_id
+         LEFT JOIN public.users creator_user ON creator_user.user_id=c.created_by_user_id
          WHERE c.contest_id=$1`,
         [contestId, req.session.userId || null]
       );
@@ -99,10 +101,10 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
     } catch (error) { next(error); }
   });
 
-  router.post('/contests', authRequired, allowRoles('Organizer'), async (req, res, next) => {
+  router.post('/contests', authRequired, allowRoles('Organizer', 'Admin'), async (req, res, next) => {
     const input = validateContest(req.body);
     if (input.errors.length) return res.status(400).json({ error: 'Validation failed.', details: input.errors });
-    if (!req.user.organizer_id) return res.status(403).json({ error: 'An Organizer profile is required to create a contest.' });
+    if (req.user.role_category === 'Organizer' && !req.user.organizer_id) return res.status(403).json({ error: 'An Organizer profile is required to create a contest.' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -118,7 +120,7 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
         `INSERT INTO public.contest (name,start_time,end_time,rules,organizer_id,created_by_user_id)
          VALUES ($1,$2,$3,$4,$5,$6)
          RETURNING contest_id,name,start_time,end_time,rules,organizer_id,created_at`,
-        [input.name,input.startTime,input.endTime,input.rules || null,req.user.organizer_id,req.user.user_id]
+        [input.name,input.startTime,input.endTime,input.rules || null,req.user.organizer_id || null,req.user.user_id]
       );
       const contest = created.rows[0];
       await client.query('INSERT INTO public.includes (contest_id,problem_id) SELECT $1, unnest($2::integer[])', [contest.contest_id,input.problemIds]);
@@ -136,15 +138,16 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
     if (!contestId) return res.status(400).json({ error: 'Invalid contest ID.' });
     const input = validateContest(req.body);
     if (input.errors.length) return res.status(400).json({ error: 'Validation failed.', details: input.errors });
-    if (!req.user.organizer_id) return res.status(403).json({ error: 'An Organizer profile is required.' });
+    if (req.user.role_category === 'Organizer' && !req.user.organizer_id) return res.status(403).json({ error: 'An Organizer profile is required.' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const updated = await client.query(
         `UPDATE public.contest SET name=$1,start_time=$2,end_time=$3,rules=$4
-         WHERE contest_id=$5 AND organizer_id=$6 AND start_time>CURRENT_TIMESTAMP
+         WHERE contest_id=$5 AND start_time>CURRENT_TIMESTAMP
+           AND (($7='Admin') OR ($7='Organizer' AND organizer_id=$6))
          RETURNING contest_id,name,start_time,end_time,rules,organizer_id,created_at`,
-        [input.name,input.startTime,input.endTime,input.rules || null,contestId,req.user.organizer_id]
+        [input.name,input.startTime,input.endTime,input.rules || null,contestId,req.user.organizer_id,req.user.role_category]
       );
       if (!updated.rowCount) {
         await client.query('ROLLBACK');
@@ -173,21 +176,28 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
     const contestId = validId(req.params.id);
     if (!contestId) return res.status(400).json({ error: 'Invalid contest ID.' });
     try {
-      const contest = await pool.query('SELECT contest_id,start_time,end_time FROM public.contest WHERE contest_id=$1', [contestId]);
-      if (!contest.rowCount) return res.status(404).json({ error: 'Contest not found.' });
-      if (new Date(contest.rows[0].start_time) <= new Date()) {
-        return res.status(409).json({ error: 'Registration has closed because this contest has started.' });
-      }
-      if (new Date(contest.rows[0].end_time) <= new Date()) {
-        return res.status(409).json({ error: 'This contest has ended.' });
-      }
       const registration = await pool.query(
         `INSERT INTO public.contest_registration (contest_id,learner_id)
-         VALUES ($1,$2) ON CONFLICT (contest_id,learner_id) DO NOTHING
+         SELECT contest_id,$2 FROM public.contest
+         WHERE contest_id=$1
+           AND start_time>CURRENT_TIMESTAMP
+           AND end_time>CURRENT_TIMESTAMP
+         ON CONFLICT (contest_id,learner_id) DO NOTHING
          RETURNING contest_id,learner_id,registered_at,score,penalty`,
         [contestId,req.user.user_id]
       );
-      if (!registration.rowCount) return res.status(409).json({ error: 'You are already registered for this contest.' });
+      if (!registration.rowCount) {
+        const existingContest = await pool.query('SELECT 1 FROM public.contest WHERE contest_id=$1', [contestId]);
+        if (!existingContest.rowCount) return res.status(404).json({ error: 'Contest not found.' });
+        const open = await pool.query(
+          'SELECT start_time>CURRENT_TIMESTAMP AS registration_open FROM public.contest WHERE contest_id=$1',
+          [contestId]
+        );
+        if (!open.rows[0].registration_open) {
+          return res.status(409).json({ error: 'Registration has closed because this contest has started.' });
+        }
+        return res.status(409).json({ error: 'You are already registered for this contest.' });
+      }
       res.status(201).json({ registration: registration.rows[0] });
     } catch (error) { next(error); }
   });
