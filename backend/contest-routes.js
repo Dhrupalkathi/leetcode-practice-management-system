@@ -84,7 +84,8 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
         [contestId, req.session.userId || null]
       );
       if (!result.rowCount) return res.status(404).json({ error: 'Contest not found.' });
-      if (result.rows[0].contest_status === 'UPCOMING' && !result.rows[0].can_manage) {
+      if ((result.rows[0].contest_status === 'UPCOMING' && !result.rows[0].can_manage) ||
+          (result.rows[0].contest_status === 'LIVE' && !result.rows[0].can_manage && !result.rows[0].is_registered)) {
         return res.json({ contest: result.rows[0], problems: [], problems_locked: true });
       }
       const problems = await pool.query(
