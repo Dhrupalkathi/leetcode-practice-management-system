@@ -58,7 +58,8 @@ async function listAvailableLanguages(pool) {
         name: language.name,
         version: language.version,
         label: language.name + ' ' + language.version,
-        judge0_language_id: provider.id
+        judge0_language_id: provider.id,
+        judge0_compile_options: language.judge0_compile_options
       };
     });
 }
