@@ -9,6 +9,8 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 - PostgreSQL connectivity through Express.
 - Problem listing, title search, difficulty and topic filtering, full problem details, topic labels and public sample-test display.
 - Problem create, update and safe retirement.
+- Code editor with Run samples and Submit solution using asynchronous Judge0 execution.
+- Per-user submission history, test-result summaries, verdict, execution time and peak memory.
 - Parameterized SQL queries and server-side input validation.
 - Login/logout using the existing USERS and ROLE tables.
 - PostgreSQL-backed sessions with HttpOnly, SameSite cookies.
@@ -37,9 +39,10 @@ Take a backup before applying migrations. Run each migration once:
 ```bash
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/001_problem_crud.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/002_auth_sessions.sql
+psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/003_submissions_judge0.sql
 ```
 
-Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table.
+Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions.
 
 ## Demo login
 
@@ -53,9 +56,17 @@ On a successful legacy login, the server verifies SHA-256 and immediately replac
 - `GET /api/problems` — list active problems with assigned topic metadata.
 - `GET /api/problems/:id` — full problem details, topics and public sample tests (hidden test cases are excluded).
 - `GET /api/problems?includeInactive=true` — include retired problems for signed-in users.
-- `GET /api/problems/:id` — get one active problem (retired records require a session).
 - `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 - `POST /api/problems`, `PUT /api/problems/:id`, `PATCH /api/problems/:id/retire` — Organizer role category only.
+- `GET /api/languages` — seeded language versions available on the configured Judge0 provider.
+- `POST /api/submissions` — asynchronous sample run (`action: run`) or full hidden-test submission (`action: submit`).
+- `GET /api/submissions` and `GET /api/submissions/:id` — signed-in user's own submission history and result details.
+
+## Code execution provider
+
+The default development configuration uses the hosted Judge0 CE endpoint at `https://ce.judge0.com`. Set `JUDGE0_BASE_URL` to a self-hosted Judge0 endpoint for a private environment; set `JUDGE0_AUTH_TOKEN` only when the configured deployment requires it. The language selector is limited to seeded database versions that exactly match language names exposed by the current Judge0 instance. Other seeded versions are not offered for execution until an exact provider mapping is configured.
+
+**Privacy:** When using hosted Judge0, submitted source code and relevant test-case input/expected output are sent to that external execution service. Use a self-hosted Judge0 deployment before processing company-confidential assessments, private problems, or sensitive candidate data. Keep the Judge0 endpoint and any authentication token private. CPU, wall-time, and memory limits are configurable through the `JUDGE0_*` environment variables.
 
 ## Security scope and limitations
 
