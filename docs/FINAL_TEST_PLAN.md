@@ -107,6 +107,24 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **How:** Send role fields in a direct registration API request and inspect the created user's role.
 - **Expected:** The API ignores/rejects caller-supplied role fields and assigns Learner L1 only.
 
+### B-07 — View and update personal profile
+- **What:** Retrieve and update the signed-in user's own name and email address.
+- **Why:** The SRS includes account/profile information and users should be able to maintain their own contact details.
+- **How:** Open Profile, change the name and email, save, reload the page and retrieve `GET /api/profile`.
+- **Expected:** Only the current user's record is updated; duplicate or malformed email addresses are rejected; role and account status are unchanged.
+
+### B-08 — Learner preferred programming language
+- **What:** Set or clear the preferred programming language on a Learner profile.
+- **Why:** The existing LEARNER relation stores a preferred language for personalization.
+- **How:** Sign in as Learner, select a language in Profile, save, and inspect the `learner.preferred_language_id` relationship.
+- **Expected:** The selected language is persisted and shown on profile reload; non-Learner roles do not receive this setting and cannot change it through the API.
+
+### B-09 — Change password and invalidate other sessions
+- **What:** Change the account password using the current password.
+- **Why:** Users need a secure way to rotate credentials; other signed-in sessions should not remain valid after a credential change.
+- **How:** Enter the current password and a new password of at least 10 characters, confirm the new password, then sign in from a separate browser session before changing the password and try that old session afterwards.
+- **Expected:** Incorrect current password and mismatched confirmation are rejected; successful change stores an Argon2id hash, keeps the current browser signed in with a regenerated session ID, and invalidates other stored sessions.
+
 ## C. Problem management and discovery
 
 ### C-01 — Public problem listing
