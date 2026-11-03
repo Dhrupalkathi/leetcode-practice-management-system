@@ -278,27 +278,7 @@ function createSubmissionRouter({ pool, authRequired, allowRoles }) {
         client.release();
       }
 
-      setImmediate(() => {
-        processSubmission(pool, {
-          submission_id: submission.submission_id,
-          code: sourceCode,
-          contest_id: contestId,
-          user_id: req.user.user_id
-        }, testResult.rows, language).catch(async (workerError) => {
-          console.error('Unexpected submission worker failure:', workerError.message);
-          try {
-            await pool.query(
-              `UPDATE public.submission
-               SET execution_status='FAILED',
-                   execution_error='The execution service could not complete this request. Please retry.'
-               WHERE submission_id=$1`,
-              [submission.submission_id]
-            );
-          } catch (databaseError) {
-            console.error('Could not persist submission worker failure:', databaseError.message);
-          }
-        });
-      });
+      // PostgreSQL-backed workers claim this PENDING record after commit.
 
       res.status(202).json({
         submission_id: submission.submission_id,
