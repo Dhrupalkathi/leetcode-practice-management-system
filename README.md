@@ -14,7 +14,6 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 - Learner progress dashboard with solved/attempted counts, acceptance rate, practice streak, 30-day activity, topic performance, language usage, pending submissions and recent practice history.
 - Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
 - Organization-scoped company assessments, problem assignment, secure one-time candidate links, timed candidate coding workspace, candidate-only submission history, and post-assessment aggregate reports.
-- Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
 - Parameterized SQL queries and server-side input validation.
 - Login/logout using the existing USERS and ROLE tables.
 - Self-service Learner L1 registration with Argon2id password storage; elevated roles are not selectable during public signup.
@@ -50,7 +49,7 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f datab
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/006_user_registration.sql
 ```
 
-Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions. Migration 004 adds optional contest linkage for new submissions, contest identity generation, creator attribution, and allows Admin-created contests without an Organizer subtype record. Previous submissions remain ordinary practice records. Migration 005 adds organization ownership to assessments, invitation-token hashes and expiry, external candidate linkage on submissions, and separate uniqueness constraints for platform users and candidates. Existing assessment rows have no inferred organization; they remain visible to Admin until their ownership is assigned. Migration 006 adds identity generation for future user IDs without changing existing user records.
+Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions. Migration 004 adds optional contest linkage for new submissions, contest identity generation, creator attribution, and allows Admin-created contests without an Organizer subtype record. Previous submissions remain ordinary practice records. It also adds contest scoring settings with defaults of 100 points per solved problem, 5 penalty minutes per wrong attempt, and elapsed-time penalty disabled by default. Migration 005 adds organization ownership to assessments, invitation-token hashes and expiry, external candidate linkage on submissions, and separate uniqueness constraints for platform users and candidates. Existing assessment rows have no inferred organization; they remain visible to Admin until their ownership is assigned. Migration 006 adds identity generation for future user IDs without changing existing user records.
 
 ## Demo login
 
@@ -80,13 +79,13 @@ On a successful legacy login, the server verifies SHA-256 and immediately replac
 - `POST /api/contests/:id/register` — Learner registration before contest start.
 - `GET /api/contests/:id/leaderboard` — public standings.
 
-Contest scoring is explicit: 100 points per problem with an accepted full submission, plus 5 penalty points per wrong full submission before the first accepted solution. Score ranks descending, then penalty ascending.
+Contest scoring defaults to 100 points per solved problem and 5 penalty minutes per wrong full submission before the first accepted solution. Organizer/Admin setup can change both values and optionally include elapsed minutes from contest start to first acceptance. The leaderboard ranks by score descending, then penalty ascending.
 - `GET /api/contests`, `GET /api/contests/:id` — public contest schedule and details.
 - `POST /api/contests`, `PUT /api/contests/:id` — Organizer/Admin contest setup and upcoming-contest editing.
 - `POST /api/contests/:id/register` — Learner registration before contest start.
 - `GET /api/contests/:id/leaderboard` — public standings.
 
-Contest scoring is explicit: 100 points per problem with an accepted full submission, plus 5 penalty points per wrong full submission before the first accepted solution. Score ranks descending, then penalty ascending.
+Contest scoring defaults to 100 points per solved problem and 5 penalty minutes per wrong full submission before the first accepted solution. Organizer/Admin setup can change both values and optionally include elapsed minutes from contest start to first acceptance. The leaderboard ranks by score descending, then penalty ascending.
 
 ## Company assessments
 
