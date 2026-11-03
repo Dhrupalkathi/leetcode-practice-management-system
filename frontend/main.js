@@ -45,6 +45,8 @@ function updateAccountUI() {
   $('#new-button').hidden = !(signedIn && currentUser.role_category === 'Organizer');
   $('#progress-panel').hidden = !(signedIn && currentUser.role_category === 'Learner');
   $('#create-contest-button').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
+  $('#assessment-section').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
+  $('#create-assessment-button').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
   $('#show-inactive').disabled = !signedIn;
 }
 
@@ -125,6 +127,190 @@ function render() {
     });
     list.append(fragment);
   }
+}
+
+let assessments = [];
+let assessmentOrganizations = [];
+let activeAssessment = null;
+
+async function loadAssessmentOrganizations() {
+  const result = await api('/api/organizations');
+  assessmentOrganizations = result.organizations || [];
+  const select = $('#assessment-organization');
+  select.replaceChildren();
+  for (const organization of assessmentOrganizations) {
+    const option = document.createElement('option');
+    option.value = organization.organization_id;
+    option.textContent = organization.org_name;
+    select.append(option);
+  }
+  const isAdmin = currentUser?.role_category === 'Admin';
+  $('#assessment-organization-field').hidden = !isAdmin;
+  select.disabled = !isAdmin;
+  return assessmentOrganizations;
+}
+
+function renderAssessments() {
+  const container = $('#assessment-list');
+  container.replaceChildren();
+  if (!assessments.length) {
+    const empty = document.createElement('p'); empty.className = 'empty';
+    empty.textContent = 'No company assessments are configured for this organization.';
+    container.append(empty); return;
+  }
+  for (const assessment of assessments) {
+    const card = document.createElement('article'); card.className = 'assessment-card';
+    const info = document.createElement('div'); info.className = 'assessment-card-main';
+    const heading = document.createElement('div'); heading.className = 'assessment-card-heading';
+    const title = document.createElement('h3'); title.textContent = assessment.title;
+    const status = document.createElement('span'); status.className = 'assessment-status ' + assessment.assessment_status.toLowerCase(); status.textContent = assessment.assessment_status;
+    heading.append(title,status);
+    const description = document.createElement('p'); description.textContent = assessment.description || 'No description provided.';
+    const meta = document.createElement('p'); meta.className = 'muted';
+    meta.textContent = formatAssessmentDate(assessment.start_time) + ' — ' + formatAssessmentDate(assessment.end_time) +
+      ' · ' + assessment.time_limit_minutes + ' min · ' + assessment.problem_count + ' problems · ' +
+      assessment.candidate_count + ' candidates · ' + (assessment.organization_name || 'Unassigned legacy assessment');
+    info.append(heading,description,meta);
+    const actions = document.createElement('div'); actions.className = 'assessment-card-actions';
+    const view = document.createElement('button'); view.type = 'button'; view.textContent = 'Manage';
+    view.addEventListener('click',()=>openAssessmentDetails(assessment.assessment_id));
+    actions.append(view);
+    if(assessment.assessment_status==='UPCOMING'){
+      const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Edit';
+      edit.addEventListener('click',()=>openAssessmentForm(assessment.assessment_id));actions.append(edit);
+    }
+    card.append(info,actions);container.append(card);
+  }
+}
+
+function formatAssessmentDate(value) {
+  return new Date(value).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});
+}
+
+async function loadAssessments() {
+  if(!currentUser||!['Organizer','Admin'].includes(currentUser.role_category))return;
+  const container=$('#assessment-list');
+  try{const result=await api('/api/assessments');assessments=result.assessments||[];renderAssessments();}
+  catch(error){container.textContent=error.message;}
+}
+
+function populateAssessmentProblemOptions(selected=[]) {
+  const select=$('#assessment-problem-ids');select.replaceChildren();
+  for(const problem of problems.filter(p=>p.is_active)){
+    const option=document.createElement('option');option.value=problem.problem_id;
+    option.textContent='#'+problem.problem_id+' · '+problem.title+' ('+problem.difficulty+')';
+    option.selected=selected.includes(Number(problem.problem_id));select.append(option);
+  }
+}
+
+async function openAssessmentForm(assessmentId=null) {
+  $('#assessment-form').reset();$('#assessment-form-error').textContent='';$('#assessment-id').value=assessmentId||'';
+  $('#assessment-form-title').textContent=assessmentId?'Edit upcoming assessment':'Create assessment';
+  try{
+    await loadAssessmentOrganizations();
+    populateAssessmentProblemOptions();
+    if(assessmentId){
+      const detail=await api('/api/assessments/'+assessmentId);
+      const a=detail.assessment;
+      $('#assessment-title-input').value=a.title;
+      $('#assessment-description-input').value=a.description||'';
+      $('#assessment-start').value=toDateTimeLocal(a.start_time);
+      $('#assessment-end').value=toDateTimeLocal(a.end_time);
+      $('#assessment-time-limit').value=a.time_limit_minutes;
+      if(a.organization_id)$('#assessment-organization').value=a.organization_id;
+      populateAssessmentProblemOptions(detail.problems.map(p=>Number(p.problem_id)));
+    }
+    $('#assessment-editor').hidden=false;
+    $('#assessment-editor').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(error){$('#assessment-form-error').textContent=error.message;}
+}
+
+function renderAssessmentProblems(rows) {
+  const container=$('#assessment-detail-problems');container.replaceChildren();
+  if(!rows.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='No problems assigned.';container.append(empty);return;}
+  for(const problem of rows){
+    const row=document.createElement('div');row.className='assessment-problem-row';
+    const title=document.createElement('strong');title.textContent=problem.order_no+'. '+problem.title;
+    const difficulty=document.createElement('span');difficulty.className='difficulty';difficulty.dataset.level=problem.difficulty.toLowerCase();difficulty.textContent=problem.difficulty;
+    row.append(title,difficulty);container.append(row);
+  }
+}
+
+function renderAssessmentCandidates(rows) {
+  const container=$('#assessment-candidates');container.replaceChildren();
+  if(!rows.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='No candidates have been invited yet.';container.append(empty);return;}
+  const table=document.createElement('table');table.className='assessment-candidate-table';
+  const head=document.createElement('thead');const hr=document.createElement('tr');
+  for(const label of ['Candidate','Email','Status','Score']){const th=document.createElement('th');th.textContent=label;hr.append(th);}head.append(hr);
+  const body=document.createElement('tbody');
+  for(const candidate of rows){
+    const row=document.createElement('tr');
+    for(const value of [candidate.name,candidate.email,candidate.status,candidate.score==null?'—':candidate.score+' / 100']){const td=document.createElement('td');td.textContent=value;row.append(td);}
+    body.append(row);
+  }
+  table.append(head,body);container.append(table);
+}
+
+async function openAssessmentDetails(assessmentId) {
+  try{
+    const result=await api('/api/assessments/'+assessmentId);
+    activeAssessment=result.assessment;
+    const a=activeAssessment;
+    $('#assessment-detail-title').textContent=a.title;
+    $('#assessment-detail-status').textContent=a.assessment_status;
+    $('#assessment-detail-meta').textContent=formatAssessmentDate(a.start_time)+' — '+formatAssessmentDate(a.end_time)+' · '+a.time_limit_minutes+' minute limit · '+(a.organization_name||'Organization');
+    renderAssessmentProblems(result.problems||[]);
+    renderAssessmentCandidates(result.candidates||[]);
+    const canInvite=a.assessment_status==='UPCOMING';
+    $('#assessment-invite-form').hidden=!canInvite;
+    $('#assessment-invitation-link').hidden=true;
+    $('#assessment-report-section').hidden=a.assessment_status!=='ENDED';
+    if(a.assessment_status==='ENDED')await loadAssessmentReport(assessmentId);
+    const dialog=$('#assessment-dialog');if(!dialog.open)dialog.showModal();
+  }catch(error){notify(error.message,'error');}
+}
+
+async function loadAssessmentReport(assessmentId) {
+  const container=$('#assessment-report');container.replaceChildren();
+  try{
+    const result=await api('/api/assessments/'+assessmentId+'/report');
+    if(!result.candidates.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='No candidate report records are available.';container.append(empty);return;}
+    const table=document.createElement('table');table.className='assessment-report-table';
+    const head=document.createElement('thead');const hr=document.createElement('tr');
+    for(const label of ['Candidate','Status','Score','Submissions','Accepted','Solved','Time','Languages']){const th=document.createElement('th');th.textContent=label;hr.append(th);}head.append(hr);
+    const body=document.createElement('tbody');
+    for(const candidate of result.candidates){
+      const row=document.createElement('tr');
+      const values=[candidate.name+' · '+candidate.email,candidate.status,candidate.score==null?'—':candidate.score+'%',candidate.submission_count,candidate.accepted_submissions,candidate.solved_problems,formatDuration(candidate.total_execution_time_ms),candidate.languages_used||'—'];
+      for(const value of values){const td=document.createElement('td');td.textContent=value;row.append(td);}body.append(row);
+    }
+    table.append(head,body);container.append(table);
+  }catch(error){container.textContent=error.message;}
+}
+
+async function createCandidateInvitation(event) {
+  event.preventDefault();if(!activeAssessment)return;
+  $('#invite-candidate-submit').disabled=true;$('#invite-candidate-error').textContent='';
+  try{
+    const result=await api('/api/assessments/'+activeAssessment.assessment_id+'/invitations',{
+      method:'POST',body:JSON.stringify({name:$('#invite-candidate-name').value,email:$('#invite-candidate-email').value})
+    });
+    $('#assessment-invite-form').reset();
+    $('#assessment-generated-link').value=result.invitation_url;
+    $('#assessment-invitation-link').hidden=false;
+    await openAssessmentDetails(activeAssessment.assessment_id);
+    $('#assessment-generated-link').value=result.invitation_url;
+    $('#assessment-invitation-link').hidden=false;
+    setTimeout(()=>$('#assessment-generated-link').focus(),0);
+  }catch(error){$('#invite-candidate-error').textContent=error.message;}
+  finally{$('#invite-candidate-submit').disabled=false;}
+}
+
+async function copyAssessmentInviteLink() {
+  const value=$('#assessment-generated-link').value;
+  if(!value)return;
+  try{await navigator.clipboard.writeText(value);notify('Invitation link copied. Share it privately with the candidate.','success');}
+  catch{$('#assessment-generated-link').focus();$('#assessment-generated-link').select();notify('Select the link and copy it manually.','');}
 }
 
 function contestDate(value) {
@@ -737,6 +923,7 @@ $('#login-form').addEventListener('submit', async (event) => {
     updateAccountUI();
     await loadProgress();
     await loadContests();
+    await loadAssessments();
     notify(
       result.passwordUpgraded
         ? 'Signed in. Legacy password hash upgraded to Argon2id.'
@@ -759,6 +946,7 @@ $('#logout-button').addEventListener('click', async () => {
     $('#show-inactive').checked = false;
     updateAccountUI();
     await loadContests();
+    await loadAssessments();
     notify('You have been logged out.', 'success');
     await loadProblems();
   } catch (error) {
@@ -771,6 +959,33 @@ $('#cancel-button').addEventListener('click', () => { $('#form-panel').hidden = 
 $('#detail-close').addEventListener('click', () => $('#problem-dialog').close());
 $('#progress-refresh').addEventListener('click', loadProgress);
 $('#create-contest-button').addEventListener('click', () => openContestForm());
+$('#create-assessment-button').addEventListener('click',()=>openAssessmentForm());
+$('#assessment-cancel').addEventListener('click',()=>{$('#assessment-editor').hidden=true;});
+$('#assessment-close').addEventListener('click',()=>$('#assessment-dialog').close());
+$('#assessment-invite-form').addEventListener('submit',createCandidateInvitation);
+$('#copy-invitation-link').addEventListener('click',copyAssessmentInviteLink);
+$('#load-assessment-report').addEventListener('click',()=>{if(activeAssessment)loadAssessmentReport(activeAssessment.assessment_id);});
+$('#assessment-form').addEventListener('submit',async(event)=>{
+  event.preventDefault();
+  const id=$('#assessment-id').value;
+  const problemIds=Array.from($('#assessment-problem-ids').selectedOptions).map(option=>Number(option.value));
+  const body={
+    title:$('#assessment-title-input').value,description:$('#assessment-description-input').value,
+    start_time:$('#assessment-start').value,end_time:$('#assessment-end').value,
+    time_limit_minutes:Number($('#assessment-time-limit').value),problem_ids:problemIds
+  };
+  if(currentUser?.role_category==='Admin')body.organization_id=Number($('#assessment-organization').value);
+  $('#assessment-save').disabled=true;$('#assessment-form-error').textContent='';
+  try{
+    const result=await api(id?'/api/assessments/'+id:'/api/assessments',{
+      method:id?'PUT':'POST',body:JSON.stringify(body)
+    });
+    $('#assessment-editor').hidden=true;
+    notify(id?'Assessment updated.':'Assessment created as #'+result.assessment.assessment_id+'.','success');
+    await loadAssessments();await openAssessmentDetails(result.assessment.assessment_id);
+  }catch(error){$('#assessment-form-error').textContent=error.message;}
+  finally{$('#assessment-save').disabled=false;}
+});
 $('#contest-cancel').addEventListener('click', () => { $('#contest-editor').hidden = true; });
 $('#contest-close').addEventListener('click', () => $('#contest-dialog').close());
 $('#contest-register-button').addEventListener('click', registerForActiveContest);
@@ -839,4 +1054,5 @@ $('#problem-form').addEventListener('submit', async (event) => {
   await loadProblems();
   await loadProgress();
   await loadContests();
+  await loadAssessments();
 })();
