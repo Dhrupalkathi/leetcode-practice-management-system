@@ -4,8 +4,14 @@
   "private": true,
   "description": "DA-IICT MC212 DBMS project - Node.js, Express and PostgreSQL",
   "main": "backend/server.js",
-  "engines": { "node": ">=20" },
-  "scripts": { "start": "node backend/server.js", "dev": "node --watch backend/server.js" },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js",
+    "build": "node scripts/check-build.js"
+  },
   "dependencies": {
     "argon2": "^0.41.1",
     "connect-pg-simple": "^10.0.0",
@@ -15,5 +21,8 @@
     "express-session": "^1.18.2",
     "helmet": "^8.1.0",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@neon/config": "^1.10.0"
   }
 }
