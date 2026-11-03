@@ -293,6 +293,28 @@ $('#candidate-submit').addEventListener('click',()=>submitCode('submit'));
 (async()=>{
   const hash=window.location.hash.startsWith('#')?window.location.hash.slice(1):window.location.hash;
   invitationToken=new URLSearchParams(hash).get('token')||'';
+  let lastActivitySentAt = {};
+  const reportActivity = async (eventType) => {
+    if (!assessmentData || assessmentData.status !== 'Started') return;
+    const now = Date.now();
+    if (now - (lastActivitySentAt[eventType] || 0) < 10000) return;
+    lastActivitySentAt[eventType] = now;
+    try {
+      await api('/api/candidate-assessment/activity', {
+        method: 'POST',
+        body: JSON.stringify({ event_type: eventType, page: window.location.pathname })
+      });
+    } catch (error) {
+      // Activity indicators are best-effort; they must never interrupt the assessment.
+      console.warn('Could not record assessment activity indicator:', error.message);
+    }
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) reportActivity('TAB_HIDDEN');
+  });
+  window.addEventListener('blur', () => reportActivity('WINDOW_BLUR'));
+  document.addEventListener('copy', () => reportActivity('COPY_ATTEMPT'));
+  document.addEventListener('paste', () => reportActivity('PASTE_ATTEMPT'));
   if(!/^[a-f0-9]{64}$/i.test(invitationToken)){setNotice('This invitation link is missing or invalid. Ask the organizer for a new invitation.',true);return;}
   try{const me=await api('/api/candidate-assessment/me');await renderAssessmentState(me);}
   catch(error){setNotice(error.message,true);$('#candidate-status').textContent='Unavailable';}
