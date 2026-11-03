@@ -371,8 +371,8 @@
       <div id="judge-review-results" class="workspace-list"></div>
     </section>
 
-    <section id="admin-panel" class="workspace-card" data-view="administration" hidden>
-      <section class="admin-reports-section">
+    <section id="admin-panel" class="workspace-card" hidden>
+      <section class="admin-reports-section" data-view="admin-overview">
         <div class="section-heading">
           <div><p class="eyebrow">PLATFORM ANALYTICS</p><h3>Platform overview</h3></div>
           <button id="admin-reports-refresh" class="secondary" type="button">Refresh reports</button>
@@ -398,7 +398,7 @@
           <div id="admin-assessment-activity" class="workspace-list"></div>
         </section>
       </section>
-      <section class="workspace-subsection">
+      <section class="workspace-subsection" data-view="admin-users">
         <div class="section-heading"><div><p class="eyebrow">PLATFORM ADMINISTRATION</p><h3>User and role management</h3></div><button id="admin-users-refresh" class="secondary" type="button">Refresh users</button></div>
       <form id="admin-user-search" class="workspace-form compact-form">
         <label>Search name or email<input id="admin-user-query" type="search"></label>
