@@ -177,6 +177,67 @@
     </section>
   </dialog>
 
+  <section id="assessment-section" class="assessment-section">
+    <div class="section-heading">
+      <div><p class="eyebrow">COMPANY / HIRING WORKFLOWS</p><h2>Technical assessments</h2></div>
+      <button id="create-assessment-button" type="button" hidden>＋ Create assessment</button>
+    </div>
+    <p class="intro-copy">Create private coding assessments, invite external candidates, and view reports after the assessment window closes.</p>
+    <div id="assessment-list" class="assessment-list"><p class="empty">Loading assessments…</p></div>
+  </section>
+
+  <section id="assessment-editor" class="form-panel" hidden>
+    <div class="section-heading">
+      <div><p class="eyebrow">ASSESSMENT SETUP</p><h2 id="assessment-form-title">Create assessment</h2></div>
+      <button id="assessment-cancel" class="secondary" type="button">Close</button>
+    </div>
+    <form id="assessment-form">
+      <input id="assessment-id" type="hidden">
+      <label class="wide">Assessment title<input id="assessment-title-input" maxlength="150" required></label>
+      <label class="wide">Description<textarea id="assessment-description-input" rows="3"></textarea></label>
+      <label>Start time<input id="assessment-start" type="datetime-local" required></label>
+      <label>End time<input id="assessment-end" type="datetime-local" required></label>
+      <label>Time limit (minutes)<input id="assessment-time-limit" type="number" min="1" max="1440" value="90" required></label>
+      <label id="assessment-organization-field">Organization<select id="assessment-organization" required></select></label>
+      <label class="wide">Assigned problems
+        <select id="assessment-problem-ids" multiple size="7" required></select>
+      </label>
+      <p class="muted wide">Candidates receive a one-time invitation link. This development build generates the link for you to share; automatic email delivery is not configured.</p>
+      <div class="form-actions">
+        <button id="assessment-save" type="submit">Save assessment</button>
+        <span id="assessment-form-error" class="error" role="alert"></span>
+      </div>
+    </form>
+  </section>
+
+  <dialog id="assessment-dialog" class="assessment-dialog" aria-labelledby="assessment-detail-title">
+    <div class="dialog-header">
+      <div><p id="assessment-detail-status" class="eyebrow"></p><h2 id="assessment-detail-title">Assessment</h2><p id="assessment-detail-meta" class="muted"></p></div>
+      <button id="assessment-close" class="secondary" type="button">Close</button>
+    </div>
+    <section class="detail-section">
+      <h3>Assigned problems</h3>
+      <div id="assessment-detail-problems" class="assessment-detail-problems"></div>
+    </section>
+    <section id="assessment-invite-section" class="detail-section">
+      <h3>Candidate invitations</h3>
+      <form id="assessment-invite-form" class="invite-form">
+        <label>Candidate name<input id="invite-candidate-name" maxlength="100" required></label>
+        <label>Candidate email<input id="invite-candidate-email" type="email" maxlength="120" required></label>
+        <div class="form-actions"><button id="invite-candidate-submit" type="submit">Create invitation link</button><span id="invite-candidate-error" class="error" role="alert"></span></div>
+      </form>
+      <div id="assessment-invitation-link" class="invitation-link-panel" hidden>
+        <p class="muted">Copy this one-time link and share it with the candidate. It will not be shown again.</p>
+        <div class="invitation-link-row"><input id="assessment-generated-link" type="text" readonly aria-label="Candidate invitation link"><button id="copy-invitation-link" type="button" class="secondary">Copy link</button></div>
+      </div>
+      <div id="assessment-candidates" class="assessment-candidates"></div>
+    </section>
+    <section id="assessment-report-section" class="detail-section" hidden>
+      <div class="section-heading"><div><h3>Post-assessment report</h3><p class="muted">Candidate source code is not included in this report.</p></div><button id="load-assessment-report" type="button" class="secondary">Refresh report</button></div>
+      <div id="assessment-report" class="assessment-report"></div>
+    </section>
+  </dialog>
+
   <footer>Local development build · PostgreSQL-backed sessions · Argon2id password migration · Topic-aware problem discovery.</footer>
 </main>
 
