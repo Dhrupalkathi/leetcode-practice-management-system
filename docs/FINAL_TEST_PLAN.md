@@ -939,3 +939,11 @@ Run these stages in order. Record test date, account and role, steps performed, 
 | Test ID | Date | Account / role | Actual result | Pass/Fail | Issue / evidence |
 |---|---|---|---|---|---|
 | — | — | — | To be completed in final verification phase | — | — |
+
+
+### I-17 — Role-based workspace navigation and isolation
+
+- **What:** Verify that each authenticated role receives only its own workspace navigation and corresponding sections.
+- **Why:** Role-specific operations must be clearly separated; unrelated role workspaces should not be exposed through the normal interface.
+- **How:** Sign in separately as Learner, Organizer, Reviewer, Mentor, Support, Judge, Moderator and Admin. Inspect navigation labels, switch between every available section, and verify that sections for other roles remain hidden. Also verify guest problem browsing and that profile, notifications and logout remain available for authenticated users.
+- **Expected:** Each role sees only its configured navigation destinations and matching sections; Admin has the platform administration entry; Learner does not see Organizer, Reviewer or Admin workspaces; switching sections does not clear or mutate records; existing dialogs and workflows continue to function. This is a UI separation check, not a substitute for server-side authorization tests.
