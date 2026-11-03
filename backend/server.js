@@ -254,7 +254,9 @@ async function start(){
     const shutdown=async()=>{
       if(shuttingDown)return;
       shuttingDown=true;
-      server.close();
+      await new Promise((resolve)=>{
+        server.close(()=>resolve());
+      });
       await stopWorkers();
       await pool.end();
     };
