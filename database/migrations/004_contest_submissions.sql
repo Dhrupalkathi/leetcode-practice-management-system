@@ -2,6 +2,15 @@
 -- Existing contest and submission data is preserved.
 BEGIN;
 
+-- Explicit contest scoring defaults: 100 points per solved problem and 5 minutes
+-- of penalty per wrong full submission made before the first accepted solution.
+ALTER TABLE public.contest
+  ADD COLUMN IF NOT EXISTS points_per_problem INTEGER NOT NULL DEFAULT 100
+    CHECK (points_per_problem > 0),
+  ADD COLUMN IF NOT EXISTS wrong_attempt_penalty_minutes INTEGER NOT NULL DEFAULT 5
+    CHECK (wrong_attempt_penalty_minutes >= 0),
+  ADD COLUMN IF NOT EXISTS time_penalty_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
 ALTER TABLE public.contest
   ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER;
 
