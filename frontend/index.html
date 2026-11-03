@@ -152,6 +152,9 @@
       <label>Start time<input id="contest-start" type="datetime-local" required></label>
       <label>End time<input id="contest-end" type="datetime-local" required></label>
       <label class="wide">Rules<textarea id="contest-rules" rows="3" placeholder="Add contest instructions and rules…"></textarea></label>
+      <label>Points per solved problem<input id="contest-points" type="number" min="1" max="10000" value="100" required></label>
+      <label>Penalty per wrong attempt (minutes)<input id="contest-wrong-penalty" type="number" min="0" max="120" value="5" required></label>
+      <label class="wide contest-time-penalty-toggle"><input id="contest-time-penalty" type="checkbox"> Include minutes taken to solve in leaderboard penalty</label>
       <label class="wide">Select problems
         <select id="contest-problem-ids" multiple size="7" required aria-describedby="contest-scoring-help"></select>
       </label>
@@ -175,7 +178,7 @@
     <section class="detail-section">
       <h3>Rules</h3>
       <p id="contest-detail-rules" class="contest-rules-text"></p>
-      <p class="muted">Scoring: 100 points per solved problem; 5 penalty points for each wrong full submission made before the first accepted solution. Leaderboard sorts by score, then penalty.</p>
+      <p id="contest-scoring-summary" class="muted">Scoring: 100 points per solved problem; 5 penalty minutes per wrong full submission before acceptance.</p>
       <div class="contest-detail-actions">
         <button id="contest-register-button" type="button" hidden>Register for contest</button>
         <button id="contest-edit-button" class="secondary" type="button" hidden>Edit contest</button>
