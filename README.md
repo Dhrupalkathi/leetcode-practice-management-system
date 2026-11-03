@@ -12,6 +12,7 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 - Code editor with Run samples and Submit solution using asynchronous Judge0 execution.
 - Per-user submission history, test-result summaries, verdict, execution time and peak memory.
 - Learner dashboard with solved/attempted counts, acceptance rate, practice streak, 30-day activity, topic performance, language usage and recent practice history.
+- Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
 - Parameterized SQL queries and server-side input validation.
 - Login/logout using the existing USERS and ROLE tables.
 - PostgreSQL-backed sessions with HttpOnly, SameSite cookies.
@@ -41,9 +42,10 @@ Take a backup before applying migrations. Run each migration once:
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/001_problem_crud.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/002_auth_sessions.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/003_submissions_judge0.sql
+psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/004_contest_submissions.sql
 ```
 
-Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions.
+Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions. Migration 004 adds optional contest linkage for new submissions, contest identity generation, creator attribution, and allows Admin-created contests without an Organizer subtype record. Previous submissions remain ordinary practice records.
 
 ## Demo login
 
@@ -63,6 +65,12 @@ On a successful legacy login, the server verifies SHA-256 and immediately replac
 - `POST /api/submissions` — asynchronous sample run (`action: run`) or full hidden-test submission (`action: submit`).
 - `GET /api/submissions` and `GET /api/submissions/:id` — signed-in user's own submission history and result details.
 - `GET /api/progress/me` — signed-in Learner's aggregate practice dashboard, activity, topic and language metrics.
+- `GET /api/contests`, `GET /api/contests/:id` — public contest schedule and details.
+- `POST /api/contests`, `PUT /api/contests/:id` — Organizer/Admin contest setup and upcoming-contest editing.
+- `POST /api/contests/:id/register` — Learner registration before contest start.
+- `GET /api/contests/:id/leaderboard` — public standings.
+
+Contest scoring is explicit: 100 points per problem with an accepted full submission, plus 5 penalty points per wrong full submission before the first accepted solution. Score ranks descending, then penalty ascending.
 
 ## Code execution provider
 
