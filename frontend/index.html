@@ -256,6 +256,73 @@
     </section>
   </dialog>
 
+  <section id="role-workspace" class="role-workspace" hidden>
+    <div class="section-heading">
+      <div><p class="eyebrow">ROLE-SPECIFIC OPERATIONS</p><h2>Workspace</h2></div>
+      <button id="workspace-refresh" class="secondary" type="button">Refresh workspace</button>
+    </div>
+    <p class="intro-copy">Tools in this area are shown according to your assigned role. Actions are enforced by the server, not only by the interface.</p>
+
+    <section id="reviewer-panel" class="workspace-card" hidden>
+      <div class="section-heading"><div><p class="eyebrow">CONTENT GOVERNANCE</p><h3>Problem review queue</h3></div><button id="review-queue-refresh" class="secondary" type="button">Refresh queue</button></div>
+      <p class="muted">Reviewers can approve a problem for publication, request changes, or reject it. Only approved problems become public.</p>
+      <div id="review-queue" class="workspace-list"></div>
+    </section>
+
+    <section id="mentor-panel" class="workspace-card" hidden>
+      <div class="section-heading"><div><p class="eyebrow">LEARNER GUIDANCE</p><h3>Mentor feedback</h3></div><button id="mentor-feedback-refresh" class="secondary" type="button">Refresh feedback</button></div>
+      <form id="mentor-feedback-form" class="workspace-form" hidden>
+        <label>Learner user ID<input id="mentor-learner-id" type="number" min="1" required></label>
+        <label>Problem ID (optional)<input id="mentor-problem-id" type="number" min="1"></label>
+        <label>Submission ID (optional)<input id="mentor-submission-id" type="number" min="1"></label>
+        <label class="wide">Feedback<textarea id="mentor-feedback-text" rows="4" maxlength="10000" required placeholder="Give constructive feedback about the learner’s approach…"></textarea></label>
+        <div class="form-actions"><button id="mentor-feedback-submit" type="submit">Send feedback</button><span id="mentor-feedback-message" class="notice" role="status"></span></div>
+      </form>
+      <div id="mentor-feedback-list" class="workspace-list"></div>
+    </section>
+
+    <section id="support-panel" class="workspace-card" hidden>
+      <div class="section-heading"><div><p class="eyebrow">HELP AND SERVICE</p><h3>Support tickets</h3></div><button id="support-refresh" class="secondary" type="button">Refresh tickets</button></div>
+      <form id="support-ticket-form" class="workspace-form">
+        <label>Subject<input id="support-subject" maxlength="160" required></label>
+        <label>Priority<select id="support-priority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>URGENT</option></select></label>
+        <label class="wide">Description<textarea id="support-description" rows="4" maxlength="10000" required></textarea></label>
+        <div class="form-actions"><button id="support-ticket-submit" type="submit">Create ticket</button><span id="support-ticket-message" class="notice" role="status"></span></div>
+      </form>
+      <h4>Your tickets</h4><div id="my-support-tickets" class="workspace-list"></div>
+      <section id="support-agent-queue" class="workspace-subsection" hidden>
+        <div class="section-heading"><h4>Support queue</h4><span class="muted">Support and Admin only</span></div>
+        <div id="support-queue-list" class="workspace-list"></div>
+      </section>
+    </section>
+
+    <section id="judge-panel" class="workspace-card" hidden>
+      <div class="section-heading"><div><p class="eyebrow">CONTEST GOVERNANCE</p><h3>Judge result review</h3></div></div>
+      <form id="judge-review-form" class="workspace-form">
+        <label>Contest ID<input id="judge-contest-id" type="number" min="1" required></label>
+        <label>Decision<select id="judge-decision"><option value="APPROVED">Approve results</option><option value="FLAGGED">Flag for investigation</option></select></label>
+        <label class="wide">Review notes<textarea id="judge-review-notes" rows="3" maxlength="5000"></textarea></label>
+        <div class="form-actions"><button id="judge-review-load" class="secondary" type="button">Load standings and reviews</button><button id="judge-review-submit" type="submit">Save decision</button></div>
+      </form>
+      <p id="judge-review-message" class="notice" role="status"></p>
+      <div id="judge-review-results" class="workspace-list"></div>
+    </section>
+
+    <section id="admin-panel" class="workspace-card" hidden>
+      <div class="section-heading"><div><p class="eyebrow">PLATFORM ADMINISTRATION</p><h3>User and role management</h3></div><button id="admin-users-refresh" class="secondary" type="button">Refresh users</button></div>
+      <form id="admin-user-search" class="workspace-form compact-form">
+        <label>Search name or email<input id="admin-user-query" type="search"></label>
+        <label class="inline-check"><input id="admin-include-inactive" type="checkbox"> Include inactive users</label>
+        <div class="form-actions"><button type="submit">Search users</button></div>
+      </form>
+      <div id="admin-user-list" class="workspace-list"></div>
+      <section class="workspace-subsection">
+        <div class="section-heading"><h4>Audit history</h4><button id="admin-audit-refresh" class="secondary" type="button">Refresh audit log</button></div>
+        <div id="admin-audit-list" class="workspace-list"></div>
+      </section>
+    </section>
+    <p id="workspace-message" class="notice" role="status" aria-live="polite"></p>
+  </section>
   <footer>Local development build · PostgreSQL-backed sessions · Argon2id password migration · Topic-aware problem discovery.</footer>
 </main>
 
