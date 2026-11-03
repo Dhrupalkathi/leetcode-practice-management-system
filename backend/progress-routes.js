@@ -41,7 +41,7 @@ module.exports = function createProgressRouter({ pool, authRequired, allowRoles 
                WHERE is_run_only = FALSE AND execution_status = 'COMPLETED'
              ), 0)::bigint AS total_execution_time_ms
            FROM public.submission
-           WHERE user_id = $1 AND assessment_id IS NULL`,
+           WHERE user_id = $1 AND assessment_id IS NULL AND contest_id IS NULL`,
           [userId]
         ),
         pool.query(
@@ -49,7 +49,7 @@ module.exports = function createProgressRouter({ pool, authRequired, allowRoles 
              SELECT DISTINCT submitted_at::date AS practice_day
              FROM public.submission
              WHERE user_id = $1
-               AND assessment_id IS NULL
+               AND assessment_id IS NULL AND contest_id IS NULL
                AND is_run_only = FALSE
                AND execution_status = 'COMPLETED'
            ),
@@ -81,7 +81,7 @@ module.exports = function createProgressRouter({ pool, authRequired, allowRoles 
                     COUNT(*) FILTER (WHERE verdict_id = 1)::integer AS accepted
              FROM public.submission
              WHERE user_id = $1
-               AND assessment_id IS NULL
+               AND assessment_id IS NULL AND contest_id IS NULL
                AND is_run_only = FALSE
                AND execution_status = 'COMPLETED'
                AND submitted_at >= CURRENT_DATE - INTERVAL '29 days'
@@ -115,7 +115,7 @@ module.exports = function createProgressRouter({ pool, authRequired, allowRoles 
            JOIN public.problem p ON p.problem_id = pt.problem_id
            JOIN public.submission s ON s.problem_id = p.problem_id
            WHERE s.user_id = $1
-             AND s.assessment_id IS NULL
+             AND s.assessment_id IS NULL AND s.contest_id IS NULL AND s.contest_id IS NULL
            GROUP BY t.topic_id, t.name
            HAVING COUNT(s.submission_id) FILTER (
              WHERE s.is_run_only = FALSE
@@ -132,7 +132,7 @@ module.exports = function createProgressRouter({ pool, authRequired, allowRoles 
            FROM public.submission s
            JOIN public.language l ON l.language_id = s.language_id
            WHERE s.user_id = $1
-             AND s.assessment_id IS NULL
+             AND s.assessment_id IS NULL AND s.contest_id IS NULL AND s.contest_id IS NULL
              AND s.is_run_only = FALSE
              AND s.execution_status = 'COMPLETED'
            GROUP BY l.language_id, l.name, l.version
@@ -149,7 +149,7 @@ module.exports = function createProgressRouter({ pool, authRequired, allowRoles 
            JOIN public.problem p ON p.problem_id = s.problem_id
            JOIN public.language l ON l.language_id = s.language_id
            LEFT JOIN public.verdict v ON v.verdict_id = s.verdict_id
-           WHERE s.user_id = $1 AND s.assessment_id IS NULL
+           WHERE s.user_id = $1 AND s.assessment_id IS NULL AND s.contest_id IS NULL AND s.contest_id IS NULL
            ORDER BY s.submitted_at DESC, s.submission_id DESC
            LIMIT 8`,
           [userId]
