@@ -70,8 +70,9 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
         return res.status(410).json({ error: 'The assessment window has closed.' });
       }
       if (invite.status === 'Started' && secondsRemaining(invite)<=0) {
-        await finishInvite(invite.assessment_id,invite.candidate_id);
+        const completion = await finishInvite(invite.assessment_id,invite.candidate_id);
         invite.status='Completed';
+        invite.score = completion?.score ?? invite.score;
       }
       req.candidateInvite=invite;
       next();
