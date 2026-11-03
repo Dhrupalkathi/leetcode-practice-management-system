@@ -1200,6 +1200,38 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
       }
     }
 
+    const reviewSection = $('#problem-review-history');
+    const reviewList = $('#problem-review-history-list');
+    reviewList.replaceChildren();
+    const canSeeReviewHistory = currentUser?.role_category === 'Admin' ||
+      (currentUser?.role_category === 'Organizer' &&
+       Number(currentUser.organizer_id) === Number(problem.created_by));
+    reviewSection.hidden = !canSeeReviewHistory;
+    if (canSeeReviewHistory) {
+      try {
+        const history = await api('/api/problems/' + problemId + '/reviews');
+        const reviews = history.reviews || [];
+        if (!reviews.length) {
+          reviewList.append(element('p', 'muted', 'No reviewer feedback has been recorded yet.'));
+        } else {
+          for (const review of reviews) {
+            const card = element('article', 'workspace-item');
+            const decision = String(review.decision || 'REVIEWED').replaceAll('_', ' ');
+            card.append(
+              element('h4', '', decision),
+              element('p', 'muted',
+                (review.reviewer_name || 'Reviewer') + ' · ' +
+                (review.reviewed_at ? new Date(review.reviewed_at).toLocaleString() : 'Date unavailable')),
+              element('p', 'workspace-item-text', review.comments || 'No comments were provided.')
+            );
+            reviewList.append(card);
+          }
+        }
+      } catch (error) {
+        reviewList.append(element('p', 'error', 'Could not load review feedback: ' + error.message));
+      }
+    }
+
     await setupSubmissionWorkspace(problemId);
 
     const dialog = $('#problem-dialog');
