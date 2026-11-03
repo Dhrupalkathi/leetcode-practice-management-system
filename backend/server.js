@@ -17,6 +17,7 @@ const createContestRouter = require('./contest-routes');
 const createAssessmentRouter = require('./assessment-routes');
 const createCandidateAssessmentRouter = require('./candidate-assessment-routes');
 const createProfileRouter = require('./profile-routes');
+const createNotificationRouter = require('./notification-routes');
 const { startSubmissionWorkers } = require('./submission-worker');
 
 const app = express();
@@ -222,6 +223,7 @@ app.use('/api', createContestRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createAssessmentRouter({ pool, authRequired, allowRoles }));
 app.use('/api/candidate-assessment', createCandidateAssessmentRouter({ pool }));
 app.use('/api', createProfileRouter({ pool, authRequired }));
+app.use('/api', createNotificationRouter({ pool, authRequired }));
 
 
 app.use(express.static(path.join(__dirname,'..','frontend')));
