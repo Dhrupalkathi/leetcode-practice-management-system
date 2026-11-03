@@ -1,4 +1,5 @@
 const express = require('express');
+const { notifyRoleCategories } = require('./notification-service');
 
 function validateProblem(body) {
   const errors=[];
@@ -185,6 +186,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       await addProblemRelations(client,created.rows[0].problem_id,input.topicIds,input.testCases);
       await client.query('COMMIT');
       if(audit) await audit(req.user.user_id,'PROBLEM_SUBMITTED_FOR_REVIEW','problem',created.rows[0].problem_id,{title:created.rows[0].title,organizer_owner_id:creatorOrganizerId,topic_ids:input.topicIds,test_case_count:input.testCases.length});
+      await notifyRoleCategories(pool,['Reviewer','Admin'],{notification_type:'PROBLEM_REVIEW',title:'Problem awaiting review',message:'Problem #'+created.rows[0].problem_id+' · '+created.rows[0].title+' was submitted for review.',entity_type:'problem',entity_id:created.rows[0].problem_id});
       res.status(201).json({problem:created.rows[0],message:'Problem and test cases submitted for Reviewer approval.'});
     } catch(error){
       await client.query('ROLLBACK');
@@ -244,6 +246,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       }
       await client.query('COMMIT');
       if(audit) await audit(req.user.user_id,'PROBLEM_UPDATE_SUBMITTED_FOR_REVIEW','problem',id,{title:updated.rows[0].title,topic_ids:input.topicIds,test_case_count:input.testCases.length});
+      await notifyRoleCategories(pool,['Reviewer','Admin'],{notification_type:'PROBLEM_REVIEW',title:'Problem update awaiting review',message:'Problem #'+id+' · '+updated.rows[0].title+' was resubmitted for review.',entity_type:'problem',entity_id:id});
       res.json({problem:updated.rows[0],message:'Problem content and topics saved; sent for Reviewer approval.'});
     } catch(error){
       await client.query('ROLLBACK');
