@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Secure coding assessment workspace">
+  <meta name="referrer" content="no-referrer">
+  <title>Candidate Assessment | Team 24 Practice Platform</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/candidate-assessment.js" defer></script>
+</head>
+<body>
+<main class="page-shell candidate-shell">
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true">LC</div>
+    <div>
+      <p class="eyebrow">TEAM 24 · SECURE ASSESSMENT</p>
+      <h1>Candidate Workspace</h1>
+    </div>
+    <span id="candidate-status" class="phase-tag">Checking invitation…</span>
+  </header>
+
+  <section class="intro-card candidate-intro">
+    <p class="eyebrow">INVITED ASSESSMENT</p>
+    <h2 id="assessment-title">Loading your assessment</h2>
+    <p id="assessment-description" class="intro-copy">Your invitation is being verified.</p>
+    <div class="candidate-meta">
+      <span id="candidate-name"></span>
+      <span id="assessment-schedule"></span>
+      <span id="assessment-limit"></span>
+    </div>
+    <div id="candidate-start-panel" class="candidate-start-panel" hidden>
+      <p id="candidate-start-message" class="muted"></p>
+      <button id="candidate-start" type="button">Start assessment</button>
+    </div>
+    <div id="candidate-timer-panel" class="candidate-timer-panel" hidden>
+      <span>Time remaining</span>
+      <strong id="candidate-timer">—</strong>
+    </div>
+    <p id="candidate-notice" class="notice" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="candidate-workspace" class="candidate-workspace" hidden>
+    <aside class="candidate-problem-panel">
+      <div class="candidate-panel-heading">
+        <div><p class="eyebrow">ASSESSMENT TASKS</p><h2>Problems</h2></div>
+        <span id="candidate-problem-count" class="count">0</span>
+      </div>
+      <div id="candidate-problem-list" class="candidate-problem-list"></div>
+    </aside>
+
+    <section class="candidate-editor-panel">
+      <div class="candidate-problem-heading">
+        <div>
+          <p id="candidate-problem-id" class="eyebrow">SELECT A PROBLEM</p>
+          <h2 id="candidate-problem-title">Choose a problem</h2>
+        </div>
+        <span id="candidate-problem-difficulty" class="difficulty" hidden></span>
+      </div>
+      <div id="candidate-problem-spec" class="candidate-problem-spec">
+        <p class="muted">Select a problem from the list to view its instructions.</p>
+      </div>
+
+      <div id="candidate-code-area" class="candidate-code-area" hidden>
+        <label class="editor-label" for="candidate-language">Programming language</label>
+        <select id="candidate-language"></select>
+        <p id="candidate-language-help" class="muted"></p>
+        <label class="editor-label" for="candidate-source-code">Your code</label>
+        <textarea id="candidate-source-code" rows="15" maxlength="50000" spellcheck="false" autocomplete="off" placeholder="Write your solution here…"></textarea>
+        <div class="submission-actions">
+          <button id="candidate-run" class="secondary" type="button">Run public samples</button>
+          <button id="candidate-submit" type="button">Submit solution</button>
+        </div>
+        <p id="candidate-execution-status" class="notice" role="status" aria-live="polite"></p>
+        <section id="candidate-result" class="submission-record" hidden>
+          <h3 id="candidate-result-heading"></h3>
+          <p id="candidate-result-verdict" class="verdict-text"></p>
+          <p id="candidate-result-metrics" class="muted"></p>
+          <p id="candidate-result-error" class="error"></p>
+          <div id="candidate-result-tests" class="test-result-list"></div>
+          <details class="code-details">
+            <summary>View your submitted code</summary>
+            <pre id="candidate-result-code"></pre>
+          </details>
+        </section>
+        <section class="history-section">
+          <h3>Your attempts for this problem</h3>
+          <div id="candidate-submission-history"></div>
+        </section>
+      </div>
+    </section>
+  </section>
+
+  <section id="candidate-finished" class="intro-card candidate-finished" hidden>
+    <p class="eyebrow">ASSESSMENT SUBMITTED</p>
+    <h2>Your assessment is complete</h2>
+    <p class="intro-copy">Your final score has been recorded. You can close this page.</p>
+    <div class="candidate-score"><span>Final score</span><strong id="candidate-final-score">—</strong></div>
+  </section>
+
+  <footer>Invitation-only candidate workspace · Hidden test data is never displayed.</footer>
+</main>
+</body>
+</html>
