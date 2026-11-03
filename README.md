@@ -13,6 +13,7 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 - Per-user submission history, test-result summaries, verdict, execution time and peak memory.
 - Learner dashboard with solved/attempted counts, acceptance rate, practice streak, 30-day activity, topic performance, language usage and recent practice history.
 - Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
+- Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
 - Parameterized SQL queries and server-side input validation.
 - Login/logout using the existing USERS and ROLE tables.
 - PostgreSQL-backed sessions with HttpOnly, SameSite cookies.
@@ -65,6 +66,12 @@ On a successful legacy login, the server verifies SHA-256 and immediately replac
 - `POST /api/submissions` — asynchronous sample run (`action: run`) or full hidden-test submission (`action: submit`).
 - `GET /api/submissions` and `GET /api/submissions/:id` — signed-in user's own submission history and result details.
 - `GET /api/progress/me` — signed-in Learner's aggregate practice dashboard, activity, topic and language metrics.
+- `GET /api/contests`, `GET /api/contests/:id` — public contest schedule and details (upcoming problem lists are protected).
+- `POST /api/contests`, `PUT /api/contests/:id` — Organizer/Admin contest setup and upcoming-contest editing.
+- `POST /api/contests/:id/register` — Learner registration before contest start.
+- `GET /api/contests/:id/leaderboard` — public standings.
+
+Contest scoring is explicit: 100 points per problem with an accepted full submission, plus 5 penalty points per wrong full submission before the first accepted solution. Score ranks descending, then penalty ascending.
 - `GET /api/contests`, `GET /api/contests/:id` — public contest schedule and details.
 - `POST /api/contests`, `PUT /api/contests/:id` — Organizer/Admin contest setup and upcoming-contest editing.
 - `POST /api/contests/:id/register` — Learner registration before contest start.
