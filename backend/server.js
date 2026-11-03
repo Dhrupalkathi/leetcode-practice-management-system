@@ -11,7 +11,6 @@ const { rateLimit } = require('express-rate-limit');
 const { pool } = require('./db');
 const createProblemDiscoveryRouter = require('./problem-discovery');
 const createSubmissionRouter = require('./submission-routes');
-const createDashboardRouter = require('./dashboard-routes');
 const createProgressRouter = require('./progress-routes');
 const createContestRouter = require('./contest-routes');
 const createAssessmentRouter = require('./assessment-routes');
@@ -224,7 +223,6 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.use('/api', createProblemDiscoveryRouter({ pool, authRequired }));
 app.use('/api', createSubmissionRouter({ pool, authRequired, allowRoles }));
-app.use('/api', createDashboardRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createProgressRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createContestRouter({ pool, authRequired, allowRoles }));
 app.use('/api', createAssessmentRouter({ pool, authRequired, allowRoles }));
