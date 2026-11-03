@@ -137,8 +137,91 @@ Run these stages in order. Record test date, account and role, steps performed, 
 
 ## D. Submission and code execution
 
-Detailed cases will be added as submission functionality is implemented. Final coverage must include accepted code, wrong answer, compilation error, runtime error, time limit exceeded, memory limit exceeded, unsupported language, malformed input, judge queue/provider failure, and repeated attempts. Verify persistence of every attempt, test-case outcome handling, and that hidden test contents are never returned.
+### D-01 — Available programming languages
+- **What:** Retrieve the language choices available to the application.
+- **Why:** Users must not select seeded language versions that the configured execution provider cannot run.
+- **How:** Open a problem detail view, inspect the language selector, and compare it with `GET /api/languages` and the provider's language catalogue.
+- **Expected:** Only seeded versions that exactly match the configured Judge0 language names are selectable.
 
+### D-02 — Run public samples only
+- **What:** Execute code using Run samples.
+- **Why:** Learners need feedback on public examples without exposing hidden judging data.
+- **How:** Open a problem with sample cases, enter code, select a language, and click Run samples. Inspect the saved run record and per-test results.
+- **Expected:** Only rows with `is_hidden = FALSE` are run. The record is marked run-only and the interface labels it as a sample run.
+
+### D-03 — Submit against all configured test cases
+- **What:** Submit code for full judging.
+- **Why:** The final verdict must account for public and hidden tests.
+- **How:** Enter code and click Submit solution; compare the number and outcomes of saved test-result rows with the problem's configured cases.
+- **Expected:** All configured test cases are evaluated in order until the first non-accepted result; the response never contains hidden inputs or expected outputs.
+
+### D-04 — Accepted solution
+- **What:** Execute a known-correct solution for a problem whose data matches that solution.
+- **Why:** Verify the successful judging path and accepted verdict persistence.
+- **How:** Submit the correct implementation and wait for execution to finish.
+- **Expected:** The record reaches COMPLETED with Accepted verdict and all evaluated test results are ACCEPTED.
+
+### D-05 — Wrong answer
+- **What:** Submit code that runs but produces incorrect output.
+- **Why:** Distinguish incorrect logic from compilation and runtime failure.
+- **How:** Use a controlled wrong-answer implementation and submit it.
+- **Expected:** A Wrong Answer verdict is stored for the first failing test; subsequent test cases are not executed.
+
+### D-06 — Compilation error
+- **What:** Submit syntactically invalid code in a compiled language.
+- **Why:** Compilation errors need a distinct verdict and useful diagnostic feedback.
+- **How:** Select a compiled language, introduce a compilation error, and submit.
+- **Expected:** Compilation Error is stored, with compiler diagnostics safely bounded in length.
+
+### D-07 — Runtime error
+- **What:** Submit code that starts but crashes during execution.
+- **Why:** A runtime failure must not be presented as a wrong answer.
+- **How:** Use a controlled runtime-error example in an available language.
+- **Expected:** Runtime Error is stored for the failing test and later tests are not executed.
+
+### D-08 — CPU time, wall time, and memory limits
+- **What:** Verify that resource-heavy code is terminated by the isolated judge.
+- **Why:** User code must not consume uncontrolled shared resources or affect the web/database process.
+- **How:** Use controlled infinite-loop and memory-allocation examples only against the isolated Judge0 service; never execute these examples directly on the app host.
+- **Expected:** The judge enforces configured CPU, wall-time, and memory limits. Where the provider reports memory termination as a generic runtime error, the app must not invent a separate memory-limit verdict.
+
+### D-09 — Unsupported language
+- **What:** Attempt a submission using a language ID that is not in the available-language response.
+- **Why:** Prevent manipulated IDs or unsupported runtimes from reaching the judge.
+- **How:** Send a direct API request with an unmapped seeded language ID.
+- **Expected:** The API returns a client error and does not create a submission record.
+
+### D-10 — Asynchronous execution and polling
+- **What:** Verify asynchronous submission creation and status retrieval.
+- **Why:** The browser should not hold one HTTP request open for compilation and execution.
+- **How:** Submit code, capture the returned submission ID, and request its detail endpoint until a terminal status is reached.
+- **Expected:** Creation returns HTTP 202 with PENDING; the stored state progresses to RUNNING and then COMPLETED or FAILED.
+
+### D-11 — Provider unavailable or polling timeout
+- **What:** Verify behavior when Judge0 cannot be reached or does not return a terminal result in time.
+- **Why:** Provider failure must not lose the submission or expose sensitive internal information.
+- **How:** Use a controlled invalid development endpoint, submit harmless code, and then restore the configured provider.
+- **Expected:** The submission remains in PostgreSQL and is marked FAILED with a generic message; logs do not print source code or hidden test data.
+
+### D-12 — Repeated runs and submissions
+- **What:** Create multiple sample runs and full submissions for the same user/problem.
+- **Why:** Every execution record must remain distinguishable and satisfy the database uniqueness constraint.
+- **How:** Perform several Run samples and Submit solution actions, then compare attempt numbers, `is_run_only`, and saved rows.
+- **Expected:** Each action is retained, run-only records are visibly distinguished, and the unique user/problem/attempt constraint is never violated. Confirm how run-only records affect visible attempt numbering.
+
+### D-13 — Own submission history and privacy
+- **What:** Request submission history and details as the submitting user and as a different user.
+- **Why:** Source code and personal submission history must not be exposed to other learners.
+- **How:** Use two separate accounts and request `GET /api/submissions` and `GET /api/submissions/:id` for records owned by each account.
+- **Expected:** Each account can see only its own submissions; another user's record returns not found.
+
+### D-14 — Execution metrics and per-test outcomes
+- **What:** Verify time, memory, per-test result, and final verdict persistence.
+- **Why:** The SRS requires submission metadata and execution metrics for feedback and analysis.
+- **How:** Compare API details with `submission` and `submission_test_result` rows in PostgreSQL.
+- **Expected:** Stored metrics correspond to the judge's returned values; hidden inputs and expected outputs are never returned by the submission-detail API.
+
+---
 ## E. Submission history and progress analytics
 
 Detailed cases will be added with the learner dashboard. Verify own-history access, denial of another user's raw code, solved count, success rate, streak, topic performance, and consistency between displayed metrics and persisted submission records.
