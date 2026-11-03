@@ -291,6 +291,19 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **How:** Compare API details with `submission` and `submission_test_result` rows in PostgreSQL.
 - **Expected:** Stored metrics correspond to the judge's returned values; hidden inputs and expected outputs are never returned by the submission-detail API.
 
+### D-15 — PostgreSQL queue persistence and restart recovery
+- **What:** Verify that a queued ordinary submission survives an application restart and resumes without duplicate per-test records.
+- **Why:** The SRS requires reliable submission history and service continuity; an in-memory callback alone cannot recover pending jobs.
+- **How:** Queue multiple harmless learner/contest submissions, restart the application while one is pending or running, then inspect the saved submission and test-result rows.
+- **Expected:** Interrupted non-candidate jobs return to PENDING, partial test-result rows from the interrupted run are cleared, workers claim jobs from PostgreSQL, and the final record reaches COMPLETED or FAILED without duplicate-key errors. Candidate-assessment jobs are marked failed on restart and can be retried only while their assessment remains open.
+
+### D-16 — Concurrent worker claiming
+- **What:** Verify that multiple configured workers do not claim the same pending submission.
+- **Why:** Concurrent processing should improve throughput without duplicate execution or conflicting database writes.
+- **How:** Configure two or more workers, queue several submissions, and compare submission IDs, per-test rows and worker logs.
+- **Expected:** Each queued submission is claimed once by one worker using row-level locking with `SKIP LOCKED`; every job reaches one terminal state.
+
+
 ---
 ## E. Submission history and progress analytics
 
