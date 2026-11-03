@@ -9,6 +9,7 @@ const connectPgSimple = require('connect-pg-simple');
 const argon2 = require('argon2');
 const { rateLimit } = require('express-rate-limit');
 const { pool } = require('./db');
+const createProblemDiscoveryRouter = require('./problem-discovery');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -162,6 +163,8 @@ app.post('/api/auth/logout', (req, res) => {
     res.json({ ok: true });
   });
 });
+
+app.use('/api', createProblemDiscoveryRouter({ pool, authRequired }));
 
 app.get('/api/problems', async (req, res, next) => {
   try {
