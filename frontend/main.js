@@ -348,7 +348,10 @@ async function loadAdminUsers() {
   if($('#admin-user-query').value.trim()) query.set('q',$('#admin-user-query').value.trim());
   if($('#admin-include-inactive').checked) query.set('includeInactive','true');
   try {
-    const payload=await api('/api/admin/users?'+query.toString());
+    const [payload, organizationPayload]=await Promise.all([
+      api('/api/admin/users?'+query.toString()),
+      api('/api/organizations')
+    ]);
     container.replaceChildren();
     for(const user of payload.users){
       const card=element('article','workspace-item admin-user-row');
@@ -358,16 +361,30 @@ async function loadAdminUsers() {
       const roleSelect=document.createElement('select');
       roleSelect.setAttribute('aria-label','Role for '+user.email);
       for(const role of payload.roles){const option=element('option','',role.role_name);option.value=role.role_id;option.selected=Number(role.role_id)===Number(user.role_id);roleSelect.append(option);}
-      const organization=document.createElement('input');
-      organization.type='number';organization.min='1';organization.placeholder='Organization ID (only when creating Organizer profile)';
-      organization.value=user.organization_id||'';organization.setAttribute('aria-label','Organizer organization ID for '+user.email);
+      const organization=document.createElement('select');
+      organization.setAttribute('aria-label','Organization for '+user.email);
+      const organizationPlaceholder=element('option','','Select organization…');
+      organizationPlaceholder.value='';
+      organization.append(organizationPlaceholder);
+      for(const item of organizationPayload.organizations||[]){
+        const option=element('option','',item.org_name+' · #'+item.organization_id);
+        option.value=item.organization_id;
+        option.selected=Number(item.organization_id)===Number(user.organization_id);
+        organization.append(option);
+      }
+      const needsOrganization=()=>roleSelect.options[roleSelect.selectedIndex]?.textContent.startsWith('Organizer L')&&!user.organization_id;
+      organization.hidden=!needsOrganization();
+      roleSelect.addEventListener('change',()=>{organization.hidden=!needsOrganization();});
       const activeLabel=element('label','inline-check','Active');
       const active=document.createElement('input');active.type='checkbox';active.checked=Boolean(user.is_active);activeLabel.prepend(active);
       const save=element('button','','Save account');save.type='button';
       save.addEventListener('click',async()=>{
         save.disabled=true;
         const body={role_id:Number(roleSelect.value),is_active:active.checked};
-        if(organization.value)body.organization_id=Number(organization.value);
+        if(needsOrganization()){
+          if(!organization.value){workspaceMessage('Select an organization before assigning an Organizer role.',true);save.disabled=false;return;}
+          body.organization_id=Number(organization.value);
+        }
         try {
           await api('/api/admin/users/'+user.user_id,{method:'PATCH',body:JSON.stringify(body)});
           workspaceMessage('Updated '+user.email+'.');
