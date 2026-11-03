@@ -224,8 +224,61 @@ Run these stages in order. Record test date, account and role, steps performed, 
 ---
 ## E. Submission history and progress analytics
 
-Detailed cases will be added with the learner dashboard. Verify own-history access, denial of another user's raw code, solved count, success rate, streak, topic performance, and consistency between displayed metrics and persisted submission records.
+### E-01 — Learner-only progress dashboard
+- **What:** View the dashboard under a Learner account and confirm it is not shown as a learner dashboard to other role categories.
+- **Why:** Progress analytics belong to the registered-solver workflow, not to guests or unrelated organizational roles.
+- **How:** Sign in with a Learner account, then sign in with an Organizer or another role category.
+- **Expected:** Learner sees the dashboard; non-Learner roles do not receive the Learner dashboard data.
 
+### E-02 — Solved and attempted problem counts
+- **What:** Compare solved and attempted counts with completed practice submission rows.
+- **Why:** The dashboard must reflect stored work rather than static seed values.
+- **How:** Compare the dashboard with distinct problem IDs in the user's completed, non-run-only, non-assessment submissions.
+- **Expected:** Attempted count equals distinct completed practice problems; solved count equals distinct problems with at least one Accepted practice submission.
+
+### E-03 — Acceptance rate
+- **What:** Verify the displayed acceptance rate.
+- **Why:** Learners need a consistent measure of how many completed attempts were accepted.
+- **How:** Compute Accepted completed practice submissions divided by all completed practice submissions for that user.
+- **Expected:** Dashboard percentage equals the computed ratio and displays 0% when there are no completed submissions.
+
+### E-04 — Practice streak
+- **What:** Verify current consecutive-day practice activity.
+- **Why:** The SRS includes practice streaks as a learner progress indicator.
+- **How:** Compare the dashboard with distinct calendar dates containing completed, non-run-only practice submissions. The streak is current only when the latest active date is today or yesterday.
+- **Expected:** Consecutive dates are counted backward without gaps; an expired streak displays zero.
+
+### E-05 — Daily activity chart
+- **What:** Verify the 30-day activity graph.
+- **Why:** Learners need to see how practice changes over time.
+- **How:** Compare each chart day with counts of completed practice submissions on that date.
+- **Expected:** Chart contains the 30-day date range, including zero-activity days, and counts match PostgreSQL.
+
+### E-06 — Topic performance
+- **What:** Verify attempted and solved problems per topic.
+- **Why:** The SRS requires topic strengths and weaknesses.
+- **How:** Compare the dashboard with ProblemTopic and the user's completed practice submissions.
+- **Expected:** A problem associated with multiple topics contributes to each relevant topic; solved counts use distinct accepted problems.
+
+### E-07 — Language usage
+- **What:** View language-version usage.
+- **Why:** Learners may want to understand which languages they use most often.
+- **How:** Compare the dashboard with grouped completed practice submissions by language_id.
+- **Expected:** Language/version counts match persisted practice records.
+
+### E-08 — Recent activity and refresh
+- **What:** View the recent practice list and refresh dashboard data.
+- **Why:** Learners need a quick view of their recent work and current metrics.
+- **How:** Submit a practice solution, return to the dashboard, and press Refresh.
+- **Expected:** New records appear with correct problem, attempt, language, date and verdict; raw source code is not shown in the dashboard.
+
+### E-09 — Assessment activity excluded from practice metrics
+- **What:** Confirm assessment-linked submissions do not change the ordinary learner practice dashboard.
+- **Why:** Company assessment activity is a distinct context with separate confidentiality and reporting rules.
+- **How:** Compare practice-only metrics against rows with a non-null assessment_id.
+- **Expected:** Assessment-linked submissions do not contribute to practice dashboard counts, streak, topic or language statistics.
+
+---
 ## F. Contests
 
 Detailed cases will be added with contest functionality. Verify contest creation and organizer ownership, start/end boundaries, registration eligibility, participation, contest-only submissions, scoring, penalties, solve times, ranking ties, and post-contest statistics.
