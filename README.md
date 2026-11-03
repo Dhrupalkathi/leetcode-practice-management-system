@@ -13,7 +13,7 @@ A LeetCode-style programming practice and technical-assessment platform backed b
 - **Learner progress:** solved/attempted counts, acceptance rate, streak, daily activity, topic performance, language usage and recent practice.
 - **Contests:** schedule, Organizer/Admin setup, Moderator problem-set management, Learner registration, contest-linked submissions, configurable score/penalty and leaderboard, plus Judge result reviews.
 - **Company assessments:** organization-scoped setup, invitations, time window and personal timer, candidate-only workspace/history, aggregate post-assessment reports and human-review activity indicators.
-- **Role services:** Mentor feedback, Support tickets and queue, Admin user/role management, audit history, and suspicious-activity review.
+- **Role services:** Mentor feedback, Support tickets and queue, Admin user/role management, aggregate platform/assessment reporting, audit history, and suspicious-activity review.
 - Parameterized SQL, server-side validation and authorization, rate limits, Helmet, secure session-cookie settings and generic API errors.
 
 ## Existing role structure
@@ -96,7 +96,7 @@ Contest score defaults to 100 points per solved problem. Each wrong full submiss
 - Candidate token routes under `/api/candidate-assessment` support invitation verification, start, assigned problems, candidate submissions/history, activity indicators and finish.
 - `POST /api/mentor/feedback`, `GET /api/mentor/feedback` — Mentor feedback and Learner feedback history.
 - `/api/support/tickets` — ticket creation, own-ticket history and Support/Admin queue updates.
-- `/api/admin/users`, `/api/admin/audit` — Admin account/role management and audit history.
+- `/api/admin/users`, `/api/admin/audit`, `/api/admin/reports` — Admin account/role management, audit history, aggregate usage metrics, popular/low-success practice problems, daily practice activity, and assessment participation summaries.
 - `/api/assessments/:id/suspicious-activity` — organization-scoped human review of candidate activity signals.
 
 ## Company assessments
