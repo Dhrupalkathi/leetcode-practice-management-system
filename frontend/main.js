@@ -73,10 +73,67 @@ async function toggleProfilePanel() {
   await loadProfile();
 }
 
+
+async function loadNotifications() {
+  const list = $('#notifications-list');
+  list.replaceChildren(element('p','muted','Loading notifications…'));
+  try {
+    const payload = await api('/api/notifications');
+    const unread = Number(payload.unread_count) || 0;
+    const badge = $('#notification-unread');
+    badge.hidden = unread === 0;
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    $('#notifications-status').textContent = unread + ' unread · showing the latest ' +
+      (payload.notifications || []).length + ' notifications';
+    list.replaceChildren();
+    if (!payload.notifications || payload.notifications.length === 0) {
+      list.append(element('p','muted','You are all caught up. No notifications yet.'));
+      return;
+    }
+    for (const notification of payload.notifications) {
+      const card = element('article',notification.is_read?'notification-card is-read':'notification-card');
+      const heading = element('strong','notification-title',notification.title);
+      const message = element('p','notification-message',notification.message);
+      const meta = element('span','notification-meta',
+        notification.notification_type.replaceAll('_',' ') + ' · ' +
+        new Date(notification.created_at).toLocaleString());
+      card.append(heading,message,meta);
+      if (!notification.is_read) {
+        const mark = element('button','secondary notification-mark-read','Mark read');
+        mark.type = 'button';
+        mark.addEventListener('click',async()=>{
+          mark.disabled=true;
+          try {
+            await api('/api/notifications/'+notification.notification_id+'/read',{method:'PATCH'});
+            await loadNotifications();
+          } catch(error) {
+            $('#notifications-status').textContent=error.message;
+            mark.disabled=false;
+          }
+        });
+        card.append(mark);
+      }
+      list.append(card);
+    }
+  } catch(error) {
+    list.replaceChildren(element('p','error',error.message));
+    $('#notifications-status').textContent='Could not load notifications.';
+  }
+}
+
+async function toggleNotificationPanel() {
+  const panel=$('#notification-panel');
+  if(!panel.hidden){panel.hidden=true;return;}
+  panel.hidden=false;
+  await loadNotifications();
+}
+
 function updateAccountUI() {
   const signedIn = Boolean(currentUser);
   $('#login-panel').hidden = signedIn;
   $('#logout-button').hidden = !signedIn;
+  $('#notification-button').hidden = !signedIn;
+  if (!signedIn) $('#notification-panel').hidden = true;
   $('#profile-button').hidden = !signedIn;
   if (!signedIn) $('#profile-panel').hidden = true;
   $('#account-status').textContent = signedIn
@@ -1546,6 +1603,17 @@ $('#login-form').addEventListener('submit', async (event) => {
 });
 
 
+$('#notification-button').addEventListener('click', toggleNotificationPanel);
+$('#notifications-close').addEventListener('click',()=>{$('#notification-panel').hidden=true;});
+$('#notifications-read-all').addEventListener('click',async()=>{
+  const button=$('#notifications-read-all');
+  button.disabled=true;
+  try{
+    await api('/api/notifications/read-all',{method:'PATCH'});
+    await loadNotifications();
+  }catch(error){$('#notifications-status').textContent=error.message;}
+  finally{button.disabled=false;}
+});
 $('#profile-button').addEventListener('click', toggleProfilePanel);
 $('#profile-close').addEventListener('click', () => { $('#profile-panel').hidden = true; });
 $('#profile-form').addEventListener('submit', async (event) => {
@@ -1797,6 +1865,7 @@ $('#problem-form').addEventListener('submit', async (event) => {
 
 (async () => {
   await loadCurrentUser();
+  if(currentUser) await loadNotifications();
   await loadTopics();
   await loadProblems();
   await loadProgress();
