@@ -137,6 +137,7 @@
     <form id="problem-form">
       <input id="problem-id" type="hidden">
       <label>Title<input id="title" name="title" maxlength="200" required></label>
+      <label id="problem-owner-field" class="wide" hidden>Organizer owner<select id="problem-owner" aria-describedby="problem-owner-help"></select><span id="problem-owner-help" class="muted">Admin-created problems must be assigned to an active Organizer profile.</span></label>
       <label>Difficulty<select id="difficulty" name="difficulty" required><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option></select></label>
       <label class="wide">Problem statement<textarea id="problem-statement" name="problem_statement" rows="5" required></textarea></label>
       <label>Input format<textarea id="input-format" name="input_format" rows="3" required></textarea></label>
