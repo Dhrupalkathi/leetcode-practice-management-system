@@ -5,6 +5,9 @@ BEGIN;
 ALTER TABLE public.contest
   ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER;
 
+ALTER TABLE public.contest
+  ALTER COLUMN organizer_id DROP NOT NULL;
+
 DO $migration$
 BEGIN
   IF NOT EXISTS (
