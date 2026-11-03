@@ -17,6 +17,7 @@ A LeetCode-style programming practice platform backed by PostgreSQL.
 - Contest schedule, Organizer/Admin contest setup, Learner registration, live contest problem access, contest-linked submissions, automatic scoring and leaderboard.
 - Parameterized SQL queries and server-side input validation.
 - Login/logout using the existing USERS and ROLE tables.
+- Self-service Learner L1 registration with Argon2id password storage; elevated roles are not selectable during public signup.
 - PostgreSQL-backed sessions with HttpOnly, SameSite cookies.
 - Legacy unsalted SHA-256 lab-hash verification and upgrade to Argon2id after successful login.
 - Role-category authorization based on the existing role names (e.g. Organizer L1 ... Organizer L10). Existing role records are retained.
@@ -46,9 +47,10 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f datab
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/003_submissions_judge0.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/004_contest_submissions.sql
 psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/005_company_assessments.sql
+psql -h 127.0.0.1 -p 5432 -U postgres -d leetcode -W -v ON_ERROR_STOP=1 -f database/migrations/006_user_registration.sql
 ```
 
-Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions. Migration 004 adds optional contest linkage for new submissions, contest identity generation, creator attribution, and allows Admin-created contests without an Organizer subtype record. Previous submissions remain ordinary practice records. Migration 005 adds organization ownership to assessments, invitation-token hashes and expiry, external candidate linkage on submissions, and separate uniqueness constraints for platform users and candidates. Existing assessment rows have no inferred organization; they remain visible to Admin until their ownership is assigned.
+Migration 001 adds `problem_statement` and identity generation for `problem_id` beginning at 81. Migration 002 widens `users.password_hash` from CHAR(64) to VARCHAR(255) without changing existing hash values, and creates the PostgreSQL session table. Migration 003 adds asynchronous execution state, Judge0 language mappings, submission identity generation, and per-test outcome storage without deleting historical submissions. Migration 004 adds optional contest linkage for new submissions, contest identity generation, creator attribution, and allows Admin-created contests without an Organizer subtype record. Previous submissions remain ordinary practice records. Migration 005 adds organization ownership to assessments, invitation-token hashes and expiry, external candidate linkage on submissions, and separate uniqueness constraints for platform users and candidates. Existing assessment rows have no inferred organization; they remain visible to Admin until their ownership is assigned. Migration 006 adds identity generation for future user IDs without changing existing user records.
 
 ## Demo login
 
