@@ -281,8 +281,61 @@ Run these stages in order. Record test date, account and role, steps performed, 
 ---
 ## F. Contests
 
-Detailed cases will be added with contest functionality. Verify contest creation and organizer ownership, start/end boundaries, registration eligibility, participation, contest-only submissions, scoring, penalties, solve times, ranking ties, and post-contest statistics.
+### F-01 — Public contest schedule
+- **What:** Browse the contest schedule while logged out and signed in.
+- **Why:** Learners need to discover upcoming, live, and ended contests.
+- **How:** Open the Contests section and compare status, timing, problem count, and participant count with database rows.
+- **Expected:** Public contests are listed with accurate UPCOMING, LIVE, or ENDED status and counts.
 
+### F-02 — Organizer/Admin contest creation
+- **What:** Create a contest with a name, start/end time, rules, and selected active problems.
+- **Why:** The SRS requires organizers and administrators to configure contests and their problem sets.
+- **How:** Use an Organizer account and an Admin account to create a future contest; inspect contest, includes, and creator/organizer records.
+- **Expected:** Contest and problem associations persist atomically. Invalid names, time ranges, or inactive problem IDs are rejected.
+
+### F-03 — Contest ownership and editing
+- **What:** Edit a contest before it starts and attempt editing a contest owned by another Organizer or one that has started.
+- **Why:** Contest management must respect ownership and schedule state.
+- **How:** Use two Organizer accounts, then an Admin account, to update the same contest.
+- **Expected:** An Organizer edits only their own upcoming contests; Admin can manage all upcoming contests; started contests cannot be edited.
+
+### F-04 — Learner registration
+- **What:** Register a Learner for an upcoming contest and try duplicate and late registrations.
+- **Why:** The platform must retain participation records and enforce eligibility timing.
+- **How:** Register once, try again, and repeat after contest start.
+- **Expected:** First registration succeeds; duplicate and late registration are rejected; Guests and non-Learners cannot register.
+
+### F-05 — Contest problem access
+- **What:** Access contest problem details as an unregistered Learner, registered Learner, and Organizer.
+- **Why:** Contest participation and access must follow contest state.
+- **How:** Compare the UI and problem detail workflow before, during, and after the contest.
+- **Expected:** Upcoming problem details are not exposed to ordinary participants before start; registered Learners can open them during the live window; historical problem sets remain accessible after the contest.
+
+### F-06 — Contest-bound submission
+- **What:** Submit a solution to a contest problem with a contest_id.
+- **Why:** Contest submissions must be distinguishable from ordinary practice submissions.
+- **How:** Register, wait until the contest live window, and submit to a problem linked through INCLUDES; also attempt unregistered, out-of-window, and non-included problem submissions.
+- **Expected:** Only registered Learners can submit to included problems while the contest is live. The submission row stores contest_id and cannot also reference an assessment.
+
+### F-07 — Automatic score and penalty calculation
+- **What:** Verify contest score and penalty after accepted and incorrect submissions.
+- **Why:** Contest outcomes must be calculated consistently.
+- **How:** Submit wrong code and then an accepted solution for a problem; inspect contest_registration.
+- **Expected:** Each accepted problem adds 100 points. Each wrong full submission before the first accepted solution adds 5 penalty points. Sample-only runs do not affect score.
+
+### F-08 — Leaderboard ordering
+- **What:** Compare ranks for participants with different scores and penalties.
+- **Why:** Contest participants need transparent ranking.
+- **How:** Create ties and different penalties, then inspect leaderboard results and SQL ordering.
+- **Expected:** Higher score ranks first; for equal scores, lower penalty ranks first; remaining ties use registration order and learner ID for stable display.
+
+### F-09 — Contest and practice separation
+- **What:** Verify contest submissions do not count toward ordinary practice progress metrics.
+- **Why:** Practice and contest contexts must remain distinguishable.
+- **How:** Compare learner dashboard counts before and after a contest submission.
+- **Expected:** Contest-linked submissions are excluded from practice progress, while remaining visible in contest standings and submission history.
+
+---
 ## G. Company assessments
 
 Detailed cases will be added with assessment functionality. Verify company ownership, assessment setup, invitations, candidate eligibility, start/end boundaries, live-code confidentiality, completed reports, and isolation between organizations.
