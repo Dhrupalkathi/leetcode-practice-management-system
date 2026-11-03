@@ -251,7 +251,8 @@ async function start(){
     const result=await pool.query('SELECT version() AS postgres_version');
     console.log('PostgreSQL connection successful:',result.rows[0].postgres_version);
     const stopWorkers=startSubmissionWorkers(pool);
-    const server=app.listen(port,'127.0.0.1',()=>console.log(`Application running at http://127.0.0.1:${port}`));
+    const host = process.env.HOST || '0.0.0.0';
+    const server=app.listen(port,host,()=>console.log(`Application running on ${host}:${port}`));
     let shuttingDown=false;
     const shutdown=async()=>{
       if(shuttingDown)return;
