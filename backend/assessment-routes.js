@@ -259,7 +259,8 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
       if (!assessment.rowCount) return res.status(404).json({ error: 'Assessment not found.' });
       if (new Date(assessment.rows[0].end_time)>new Date()) return res.status(403).json({ error: 'Post-assessment reports are available after the assessment closes.' });
       const result = await pool.query(
-        `SELECT c.candidate_id,c.name,c.email,i.status,i.invited_at,i.attempted_at,i.score,
+        `SELECT RANK() OVER (ORDER BY i.score DESC NULLS LAST, i.attempted_at ASC NULLS LAST, c.candidate_id)::integer AS rank,
+                c.candidate_id,c.name,c.email,i.status,i.invited_at,i.attempted_at,i.score,
                 COUNT(s.submission_id)::integer AS submission_count,
                 COUNT(s.submission_id) FILTER (WHERE s.verdict_id=1)::integer AS accepted_submissions,
                 COUNT(DISTINCT s.problem_id) FILTER (WHERE s.verdict_id=1)::integer AS solved_problems,
