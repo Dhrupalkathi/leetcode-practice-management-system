@@ -947,3 +947,12 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **Why:** Role-specific operations must be clearly separated; unrelated role workspaces should not be exposed through the normal interface.
 - **How:** Sign in separately as Learner, Organizer, Reviewer, Mentor, Support, Judge, Moderator and Admin. Inspect navigation labels, switch between every available section, and verify that sections for other roles remain hidden. Also verify guest problem browsing and that profile, notifications and logout remain available for authenticated users.
 - **Expected:** Each role sees only its configured navigation destinations and matching sections; Admin has the platform administration entry; Learner does not see Organizer, Reviewer or Admin workspaces; switching sections does not clear or mutate records; existing dialogs and workflows continue to function. This is a UI separation check, not a substitute for server-side authorization tests.
+
+
+## I. Role-specific workspace presentation
+
+### I-18 — Admin workspace destinations are separated
+- **What:** Verify that the Admin role has distinct Platform overview and User management destinations.
+- **Why:** Platform analytics and account administration are separate major responsibilities and should not be mixed into one long page.
+- **How:** Sign in as Admin, open Platform overview, then User management. Confirm the report cards/charts appear only in the overview destination and account search/role controls appear only in User management. Navigate between them and reload the page.
+- **Expected:** Both destinations render independently within the Admin workspace; no Learner or Organizer sees either destination; existing report and account-management actions remain available.
