@@ -93,7 +93,7 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
                 EXISTS(SELECT 1 FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id AND cr.learner_id=$1) AS is_registered,
                 (c.organizer_id=$1 OR c.created_by_user_id=$1 OR EXISTS(
                   SELECT 1 FROM public.users au JOIN public.role ar ON ar.role_id=au.role_id
-                  WHERE au.user_id=$1 AND ar.role_name LIKE 'Admin L%'
+                  WHERE au.user_id=$1 AND (ar.role_name LIKE 'Admin L%' OR ar.role_name LIKE 'Moderator L%')
                 )) AS can_manage,
                 CASE WHEN CURRENT_TIMESTAMP<c.start_time THEN 'UPCOMING'
                      WHEN CURRENT_TIMESTAMP<c.end_time THEN 'LIVE' ELSE 'ENDED' END AS contest_status
@@ -118,7 +118,7 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
                 EXISTS(SELECT 1 FROM public.contest_registration cr WHERE cr.contest_id=c.contest_id AND cr.learner_id=$2) AS is_registered,
                 (c.organizer_id=$2 OR c.created_by_user_id=$2 OR EXISTS(
                   SELECT 1 FROM public.users au JOIN public.role ar ON ar.role_id=au.role_id
-                  WHERE au.user_id=$2 AND ar.role_name LIKE 'Admin L%'
+                  WHERE au.user_id=$2 AND (ar.role_name LIKE 'Admin L%' OR ar.role_name LIKE 'Moderator L%')
                 )) AS can_manage,
                 CASE WHEN CURRENT_TIMESTAMP<c.start_time THEN 'UPCOMING'
                      WHEN CURRENT_TIMESTAMP<c.end_time THEN 'LIVE' ELSE 'ENDED' END AS contest_status
