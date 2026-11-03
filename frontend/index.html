@@ -117,6 +117,18 @@
       <label>Input format<textarea id="input-format" name="input_format" rows="3" required></textarea></label>
       <label>Output format<textarea id="output-format" name="output_format" rows="3" required></textarea></label>
       <label class="wide">Constraints (optional)<textarea id="constraints" name="constraints" rows="2"></textarea></label>
+      <fieldset class="editor-fieldset wide">
+        <legend>Topics / tags</legend>
+        <p class="muted">Select one or more topics so learners can discover this problem by topic.</p>
+        <div id="problem-topic-options" class="problem-topic-options"></div>
+      </fieldset>
+      <fieldset class="editor-fieldset wide">
+        <legend>Test cases</legend>
+        <p class="muted">Sample test cases are visible to learners. Hidden test cases are used for final judging and are never returned in the public problem details.</p>
+        <p id="problem-test-cases-locked" class="locked-note" hidden>Test cases are locked because submissions already exist for this problem. To preserve historical judging, existing input/output and visibility cannot be changed.</p>
+        <div id="problem-test-case-list" class="problem-test-case-list"></div>
+        <button id="add-problem-test-case" class="secondary add-test-case" type="button">＋ Add test case</button>
+      </fieldset>
       <div class="form-actions">
         <button id="save-button" type="submit">Save problem</button>
         <span id="form-error" class="error" role="alert"></span>
