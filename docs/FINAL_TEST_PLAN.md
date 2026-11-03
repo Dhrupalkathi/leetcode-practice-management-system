@@ -295,7 +295,7 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **What:** Verify that a queued ordinary submission survives an application restart and resumes without duplicate per-test records.
 - **Why:** The SRS requires reliable submission history and service continuity; an in-memory callback alone cannot recover pending jobs.
 - **How:** Queue multiple harmless learner/contest submissions, restart the application while one is pending or running, then inspect the saved submission and test-result rows.
-- **Expected:** Interrupted non-candidate jobs return to PENDING, partial test-result rows from the interrupted run are cleared, workers claim jobs from PostgreSQL, and the final record reaches COMPLETED or FAILED without duplicate-key errors. Candidate-assessment jobs are marked failed on restart and can be retried only while their assessment remains open.
+- **Expected:** Interrupted learner, contest and candidate-assessment jobs return to PENDING, partial test-result rows from the interrupted run are cleared, workers claim jobs from PostgreSQL, and the final record reaches COMPLETED or FAILED without duplicate-key errors. Candidate assessment completion remains blocked while any candidate submission is PENDING or RUNNING.
 
 ### D-16 — Concurrent worker claiming
 - **What:** Verify that multiple configured workers do not claim the same pending submission.
