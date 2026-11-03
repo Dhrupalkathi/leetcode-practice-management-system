@@ -17,6 +17,7 @@ const createContestRouter = require('./contest-routes');
 const createAssessmentRouter = require('./assessment-routes');
 const createCandidateAssessmentRouter = require('./candidate-assessment-routes');
 const createProfileRouter = require('./profile-routes');
+const { startSubmissionWorkers } = require('./submission-worker');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -232,15 +233,34 @@ app.use((error,req,res,next)=>{
 });
 async function start(){
   try{
+    // A process restart can safely re-queue ordinary learner/contest jobs.
+    await pool.query(
+      `UPDATE public.submission
+       SET execution_status='PENDING',execution_error=NULL
+       WHERE execution_status='RUNNING' AND candidate_id IS NULL`
+    );
+    // Candidate-assessment requests currently execute directly and are not part of this queue.
     await pool.query(
       `UPDATE public.submission
        SET execution_status='FAILED',
-           execution_error='The server restarted before execution completed. Please submit again.'
-       WHERE execution_status IN ('PENDING','RUNNING')`
+           execution_error='The assessment execution process restarted. Please submit again if the assessment is still open.'
+       WHERE candidate_id IS NOT NULL
+         AND execution_status IN ('PENDING','RUNNING')`
     );
     const result=await pool.query('SELECT version() AS postgres_version');
     console.log('PostgreSQL connection successful:',result.rows[0].postgres_version);
-    app.listen(port,'127.0.0.1',()=>console.log(`Application running at http://127.0.0.1:${port}`));
+    const stopWorkers=startSubmissionWorkers(pool);
+    const server=app.listen(port,'127.0.0.1',()=>console.log(`Application running at http://127.0.0.1:${port}`));
+    let shuttingDown=false;
+    const shutdown=async()=>{
+      if(shuttingDown)return;
+      shuttingDown=true;
+      server.close();
+      await stopWorkers();
+      await pool.end();
+    };
+    process.once('SIGINT',()=>{void shutdown();});
+    process.once('SIGTERM',()=>{void shutdown();});
   }catch(error){
     console.error('Could not connect to PostgreSQL. Check local .env settings:',error.message);
     process.exitCode=1;
