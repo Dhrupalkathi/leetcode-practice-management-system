@@ -906,6 +906,34 @@ async function loadProgress() {
   }
 }
 
+$('#registration-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('#registration-button').disabled = true;
+  $('#registration-error').textContent = '';
+  try {
+    const result = await api('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: $('#registration-name').value,
+        email: $('#registration-email').value,
+        password: $('#registration-password').value
+      })
+    });
+    currentUser = result.user;
+    $('#registration-password').value = '';
+    updateAccountUI();
+    await loadProblems();
+    await loadProgress();
+    await loadContests();
+    await loadAssessments();
+    notify(result.message || 'Account created successfully.', 'success');
+  } catch (error) {
+    $('#registration-error').textContent = error.message;
+  } finally {
+    $('#registration-button').disabled = false;
+  }
+});
+
 $('#login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   $('#login-button').disabled = true;
