@@ -48,6 +48,14 @@ function updateAccountUI() {
   $('#assessment-section').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
   $('#create-assessment-button').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
   $('#show-inactive').disabled = !signedIn;
+  $('#role-workspace').hidden = !signedIn;
+  $('#reviewer-panel').hidden = !(signedIn && ['Reviewer','Admin'].includes(currentUser.role_category));
+  $('#mentor-panel').hidden = !(signedIn && ['Mentor','Learner','Admin'].includes(currentUser.role_category));
+  $('#mentor-feedback-form').hidden = !(signedIn && ['Mentor','Admin'].includes(currentUser.role_category));
+  $('#support-panel').hidden = !signedIn;
+  $('#support-agent-queue').hidden = !(signedIn && ['Support','Admin'].includes(currentUser.role_category));
+  $('#judge-panel').hidden = !(signedIn && ['Judge','Admin'].includes(currentUser.role_category));
+  $('#admin-panel').hidden = !(signedIn && currentUser.role_category === 'Admin');
   const canViewProgress = signedIn && currentUser.role_category === 'Learner';
   $('#progress-button').hidden = !canViewProgress;
 }
@@ -67,6 +75,193 @@ function addTopicChips(container, assignedTopics) {
     chip.textContent = topic.name;
     container.append(chip);
   }
+}
+
+function workspaceMessage(message, isError = false) {
+  const node = $('#workspace-message');
+  node.textContent = message;
+  node.dataset.state = isError ? 'error' : 'success';
+}
+
+function element(tag, className, value) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (value !== undefined) node.textContent = value;
+  return node;
+}
+
+async function loadReviewQueue() {
+  const container = $('#review-queue');
+  container.replaceChildren();
+  try {
+    const payload = await api('/api/problems/review-queue');
+    if (!payload.problems.length) { container.append(element('p','muted','No problems are waiting for review.')); return; }
+    for (const problem of payload.problems) {
+      const card = element('article','workspace-item');
+      const title = element('h4','', '#' + problem.problem_id + ' · ' + problem.title);
+      const meta = element('p','muted',problem.difficulty + ' · ' + problem.review_status + ' · ' + (problem.creator_name || 'Unknown creator'));
+      const statement = element('p','workspace-item-text',problem.problem_statement || 'No statement supplied.');
+      const comments = document.createElement('textarea');
+      comments.rows = 3; comments.maxLength = 5000; comments.placeholder = 'Review comments for the Organizer…';
+      comments.setAttribute('aria-label','Review comments for problem ' + problem.problem_id);
+      const actions = element('div','workspace-actions');
+      for (const decision of ['APPROVED','CHANGES_REQUESTED','REJECTED']) {
+        const button = element('button',decision==='APPROVED'?'':'secondary',decision.replaceAll('_',' '));
+        button.type='button';
+        button.addEventListener('click',async()=>{
+          button.disabled=true;
+          try {
+            await api('/api/problems/'+problem.problem_id+'/reviews',{method:'POST',body:JSON.stringify({decision,comments:comments.value})});
+            workspaceMessage('Problem #'+problem.problem_id+' review saved: '+decision+'.');
+            await loadReviewQueue(); await loadProblems();
+          } catch(error){workspaceMessage(error.message,true);button.disabled=false;}
+        });
+        actions.append(button);
+      }
+      card.append(title,meta,statement,comments,actions);
+      container.append(card);
+    }
+  } catch(error){container.append(element('p','error',error.message));}
+}
+
+async function loadAdminUsers() {
+  const container=$('#admin-user-list');
+  container.replaceChildren(element('p','muted','Loading accounts…'));
+  const query=new URLSearchParams();
+  if($('#admin-user-query').value.trim()) query.set('q',$('#admin-user-query').value.trim());
+  if($('#admin-include-inactive').checked) query.set('includeInactive','true');
+  try {
+    const payload=await api('/api/admin/users?'+query.toString());
+    container.replaceChildren();
+    for(const user of payload.users){
+      const card=element('article','workspace-item admin-user-row');
+      const title=element('h4','',user.name+' · #'+user.user_id);
+      const meta=element('p','muted',user.email+' · Joined '+new Date(user.joined_at).toLocaleDateString()+(user.org_name?' · '+user.org_name:''));
+      const controls=element('div','admin-user-controls');
+      const roleSelect=document.createElement('select');
+      roleSelect.setAttribute('aria-label','Role for '+user.email);
+      for(const role of payload.roles){const option=element('option','',role.role_name);option.value=role.role_id;option.selected=Number(role.role_id)===Number(user.role_id);roleSelect.append(option);}
+      const organization=document.createElement('input');
+      organization.type='number';organization.min='1';organization.placeholder='Organization ID (only when creating Organizer profile)';
+      organization.value=user.organization_id||'';organization.setAttribute('aria-label','Organizer organization ID for '+user.email);
+      const activeLabel=element('label','inline-check','Active');
+      const active=document.createElement('input');active.type='checkbox';active.checked=Boolean(user.is_active);activeLabel.prepend(active);
+      const save=element('button','','Save account');save.type='button';
+      save.addEventListener('click',async()=>{
+        save.disabled=true;
+        const body={role_id:Number(roleSelect.value),is_active:active.checked};
+        if(organization.value)body.organization_id=Number(organization.value);
+        try {
+          await api('/api/admin/users/'+user.user_id,{method:'PATCH',body:JSON.stringify(body)});
+          workspaceMessage('Updated '+user.email+'.');
+          await loadAdminUsers();
+        } catch(error){workspaceMessage(error.message,true);save.disabled=false;}
+      });
+      controls.append(roleSelect,organization,activeLabel,save);
+      card.append(title,meta,controls);container.append(card);
+    }
+    if(!payload.users.length)container.append(element('p','muted','No accounts matched your search.'));
+  } catch(error){container.replaceChildren(element('p','error',error.message));}
+}
+
+async function loadAdminAudit() {
+  const container=$('#admin-audit-list');container.replaceChildren();
+  try {
+    const payload=await api('/api/admin/audit');
+    for(const event of payload.events){
+      const row=element('article','workspace-item');
+      row.append(element('strong','',event.action+' · '+event.entity_type+' '+(event.entity_id||'')));
+      row.append(element('p','muted',(event.actor_name||'Former user')+' · '+new Date(event.created_at).toLocaleString()));
+      row.append(element('pre','workspace-json',JSON.stringify(event.details,null,2)));
+      container.append(row);
+    }
+    if(!payload.events.length)container.append(element('p','muted','No audit events recorded yet.'));
+  } catch(error){container.append(element('p','error',error.message));}
+}
+
+async function loadMentorFeedback() {
+  const container=$('#mentor-feedback-list');container.replaceChildren();
+  try {
+    const payload=await api('/api/mentor/feedback');
+    for(const item of payload.feedback){
+      const card=element('article','workspace-item');
+      const person=currentUser.role_category==='Learner'?'From '+item.mentor_name:'To '+item.learner_name;
+      card.append(element('h4','',person+(item.problem_title?' · '+item.problem_title:'')));
+      card.append(element('p','muted',new Date(item.created_at).toLocaleString()+(item.submission_id?' · Submission #'+item.submission_id:'')));
+      card.append(element('p','workspace-item-text',item.feedback));
+      container.append(card);
+    }
+    if(!payload.feedback.length)container.append(element('p','muted','No feedback available yet.'));
+  } catch(error){container.append(element('p','error',error.message));}
+}
+
+function renderTicket(container,ticket,staff=false) {
+  const card=element('article','workspace-item');
+  card.append(element('h4','','#'+ticket.ticket_id+' · '+ticket.subject));
+  card.append(element('p','muted',ticket.priority+' · '+ticket.status+' · '+new Date(ticket.created_at).toLocaleString()+(ticket.requester_name?' · '+ticket.requester_name:'')));
+  card.append(element('p','workspace-item-text',ticket.description));
+  if(staff){
+    const controls=element('div','workspace-actions');
+    const status=document.createElement('select');
+    for(const value of ['OPEN','IN_PROGRESS','WAITING','RESOLVED','CLOSED']){const option=element('option','',value);option.value=value;option.selected=value===ticket.status;status.append(option);}
+    const priority=document.createElement('select');
+    for(const value of ['LOW','MEDIUM','HIGH','URGENT']){const option=element('option','',value);option.value=value;option.selected=value===ticket.priority;priority.append(option);}
+    const agent=document.createElement('input');agent.type='number';agent.min='1';agent.placeholder='Support user ID (optional)';agent.value=ticket.assigned_support_id||'';
+    const save=element('button','','Update ticket');save.type='button';
+    save.addEventListener('click',async()=>{
+      save.disabled=true;
+      const body={status:status.value,priority:priority.value};
+      if(agent.value)body.assigned_support_id=Number(agent.value);
+      try{await api('/api/support/tickets/'+ticket.ticket_id,{method:'PATCH',body:JSON.stringify(body)});await loadSupportTickets();}
+      catch(error){workspaceMessage(error.message,true);save.disabled=false;}
+    });
+    controls.append(status,priority,agent,save);card.append(controls);
+  }
+  container.append(card);
+}
+
+async function loadSupportTickets() {
+  const mine=$('#my-support-tickets');mine.replaceChildren();
+  try {
+    const own=await api('/api/support/tickets/mine');
+    for(const ticket of own.tickets)renderTicket(mine,ticket,false);
+    if(!own.tickets.length)mine.append(element('p','muted','You have not raised a support ticket.'));
+  } catch(error){mine.append(element('p','error',error.message));}
+  if(['Support','Admin'].includes(currentUser?.role_category)){
+    const queue=$('#support-queue-list');queue.replaceChildren();
+    try{const payload=await api('/api/support/tickets');for(const ticket of payload.tickets)renderTicket(queue,ticket,true);
+      if(!payload.tickets.length)queue.append(element('p','muted','No support tickets are waiting.'));}
+    catch(error){queue.append(element('p','error',error.message));}
+  }
+}
+
+async function loadJudgeContestReview() {
+  const id=Number($('#judge-contest-id').value);
+  const container=$('#judge-review-results');container.replaceChildren();
+  if(!Number.isSafeInteger(id)||id<=0){$('#judge-review-message').textContent='Enter a valid contest ID.';return;}
+  try{
+    const payload=await api('/api/judge/contests/'+id+'/reviews');
+    $('#judge-review-message').textContent=payload.contest.name+' · '+new Date(payload.contest.end_time).toLocaleString();
+    const heading=element('h4','','Leaderboard');container.append(heading);
+    for(const entry of payload.leaderboard){
+      container.append(element('p','workspace-item-text','#'+entry.rank+' · '+entry.learner_name+' · '+entry.score+' points · '+entry.penalty+' penalty minutes'));
+    }
+    container.append(element('h4','','Previous judge reviews'));
+    for(const review of payload.reviews){
+      container.append(element('p','muted',review.decision+' · '+review.judge_name+' · '+new Date(review.reviewed_at).toLocaleString()));
+      if(review.notes)container.append(element('p','workspace-item-text',review.notes));
+    }
+    if(!payload.reviews.length)container.append(element('p','muted','No Judge review has been recorded.'));
+  }catch(error){$('#judge-review-message').textContent=error.message;}
+}
+
+async function loadRoleWorkspace() {
+  if(!currentUser)return;
+  const category=currentUser.role_category;
+  if(['Reviewer','Admin'].includes(category))await loadReviewQueue();
+  if(['Mentor','Learner','Admin'].includes(category))await loadMentorFeedback();
+  await loadSupportTickets();
+  if(category==='Admin'){await loadAdminUsers();await loadAdminAudit();}
 }
 
 function render() {
@@ -107,6 +302,11 @@ function render() {
       'Created ' + new Date(problem.created_at).toLocaleDateString() +
       ' · Organizer ID ' + problem.created_by;
     row.querySelector('.retired-tag').hidden = problem.is_active;
+    row.querySelector('.retired-tag').textContent = problem.review_status === 'PENDING_REVIEW'
+      ? 'Pending review'
+      : problem.review_status === 'CHANGES_REQUESTED' ? 'Changes requested'
+      : problem.review_status === 'REJECTED' ? 'Rejected'
+      : problem.review_status === 'RETIRED' ? 'Retired' : 'Inactive';
     addTopicChips(row.querySelector('.problem-topics'), problem.topics);
 
     const canManage = currentUser?.role_category === 'Organizer';
@@ -962,6 +1162,7 @@ $('#login-form').addEventListener('submit', async (event) => {
     await loadProgress();
     await loadContests();
     await loadAssessments();
+    await loadRoleWorkspace();
     notify(
       result.passwordUpgraded
         ? 'Signed in. Legacy password hash upgraded to Argon2id.'
@@ -1001,6 +1202,50 @@ $('#progress-button').addEventListener('click', async () => {
   if (!panel.hidden) await loadProgress();
 });
 $('#progress-refresh').addEventListener('click', loadProgress);
+$('#workspace-refresh').addEventListener('click',loadRoleWorkspace);
+$('#review-queue-refresh').addEventListener('click',loadReviewQueue);
+$('#mentor-feedback-refresh').addEventListener('click',loadMentorFeedback);
+$('#support-refresh').addEventListener('click',loadSupportTickets);
+$('#admin-users-refresh').addEventListener('click',loadAdminUsers);
+$('#admin-audit-refresh').addEventListener('click',loadAdminAudit);
+$('#admin-user-search').addEventListener('submit',async(event)=>{event.preventDefault();await loadAdminUsers();});
+$('#judge-review-load').addEventListener('click',loadJudgeContestReview);
+$('#judge-review-form').addEventListener('submit',async(event)=>{
+  event.preventDefault();
+  const id=Number($('#judge-contest-id').value);
+  $('#judge-review-submit').disabled=true;
+  try{
+    await api('/api/judge/contests/'+id+'/reviews',{method:'POST',body:JSON.stringify({decision:$('#judge-decision').value,notes:$('#judge-review-notes').value})});
+    $('#judge-review-notes').value='';
+    $('#judge-review-message').textContent='Judge review saved.';
+    await loadJudgeContestReview();
+  }catch(error){$('#judge-review-message').textContent=error.message;}
+  finally{$('#judge-review-submit').disabled=false;}
+});
+$('#mentor-feedback-form').addEventListener('submit',async(event)=>{
+  event.preventDefault();
+  $('#mentor-feedback-submit').disabled=true;
+  try{
+    await api('/api/mentor/feedback',{method:'POST',body:JSON.stringify({
+      learner_id:Number($('#mentor-learner-id').value),
+      problem_id:$('#mentor-problem-id').value?Number($('#mentor-problem-id').value):null,
+      submission_id:$('#mentor-submission-id').value?Number($('#mentor-submission-id').value):null,
+      feedback:$('#mentor-feedback-text').value
+    })});
+    $('#mentor-feedback-text').value='';$('#mentor-feedback-message').textContent='Feedback sent.';
+    await loadMentorFeedback();
+  }catch(error){$('#mentor-feedback-message').textContent=error.message;}
+  finally{$('#mentor-feedback-submit').disabled=false;}
+});
+$('#support-ticket-form').addEventListener('submit',async(event)=>{
+  event.preventDefault();$('#support-ticket-submit').disabled=true;
+  try{
+    await api('/api/support/tickets',{method:'POST',body:JSON.stringify({subject:$('#support-subject').value,description:$('#support-description').value,priority:$('#support-priority').value})});
+    $('#support-ticket-form').reset();$('#support-ticket-message').textContent='Support ticket created.';
+    await loadSupportTickets();
+  }catch(error){$('#support-ticket-message').textContent=error.message;}
+  finally{$('#support-ticket-submit').disabled=false;}
+});
 $('#create-contest-button').addEventListener('click', () => openContestForm());
 $('#create-assessment-button').addEventListener('click',()=>openAssessmentForm());
 $('#assessment-cancel').addEventListener('click',()=>{$('#assessment-editor').hidden=true;});
@@ -1088,10 +1333,7 @@ $('#problem-form').addEventListener('submit', async (event) => {
       body: JSON.stringify(body)
     });
     $('#form-panel').hidden = true;
-    notify(
-      id ? 'Problem #' + id + ' updated.' : 'Problem #' + result.problem.problem_id + ' created.',
-      'success'
-    );
+    notify(result.message || (id ? 'Changes submitted for Reviewer approval.' : 'Problem submitted for Reviewer approval.'), 'success');
     await loadProblems();
   } catch (error) {
     $('#form-error').textContent = error.message;
@@ -1107,4 +1349,5 @@ $('#problem-form').addEventListener('submit', async (event) => {
   await loadProgress();
   await loadContests();
   await loadAssessments();
+  await loadRoleWorkspace();
 })();
