@@ -53,3 +53,47 @@
 
 .contest-time-penalty-toggle{display:flex!important;align-items:center;gap:10px}
 .contest-time-penalty-toggle input{width:auto!important;accent-color:#a7f3d0}
+
+
+/* Role-specific workspace */
+.role-workspace{border:1px solid #263550;border-radius:18px;background:rgba(16,26,47,.92);padding:clamp(20px,4vw,30px);margin:18px 0}
+.role-workspace[hidden],.workspace-card[hidden]{display:none}
+.role-workspace h2{margin:0;font-size:clamp(23px,4vw,31px)}
+.workspace-card{margin-top:18px;padding:18px;border:1px solid #2c405d;border-radius:14px;background:#0b1427}
+.workspace-card h3{margin:0;font-size:17px}
+.workspace-card h4{font-size:13px;margin:12px 0 8px}
+.workspace-subsection{margin-top:18px;padding-top:16px;border-top:1px solid #293954}
+.workspace-list{display:grid;gap:10px;margin-top:14px}
+.workspace-item{min-width:0;padding:14px;border:1px solid #2c405d;border-radius:10px;background:#101b30}
+.workspace-item h4{margin:0 0 7px;font-size:13px;color:#e6f3ff}
+.workspace-item .muted{margin:0 0 8px;font-size:10px}
+.workspace-item-text{white-space:pre-wrap;overflow-wrap:anywhere;color:#b8c7dc;font-size:12px;line-height:1.55;margin:8px 0}
+.workspace-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.workspace-form[hidden]{display:none}
+.workspace-form label{display:grid;gap:6px;color:#bac9e4;font-size:12px}
+.workspace-form input,.workspace-form select,.workspace-form textarea,.workspace-item select,.workspace-item input{width:100%;min-width:0;border:1px solid #354765;border-radius:8px;background:#0a1427;color:#edf2ff;padding:9px 10px;font:inherit}
+.workspace-form textarea{resize:vertical}
+.workspace-form .wide{grid-column:1/-1}
+.workspace-form .form-actions{grid-column:1/-1;display:flex;align-items:center;gap:12px}
+.inline-check{display:flex!important;align-items:center;gap:9px}
+.inline-check input{width:auto;accent-color:#a7f3d0}
+.workspace-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.workspace-actions button{font-size:10px;padding:8px 10px}
+.admin-user-controls{display:grid;grid-template-columns:minmax(140px,1fr) minmax(120px,1fr) auto auto;align-items:center;gap:8px;margin-top:10px}
+.admin-user-controls button{font-size:10px;padding:8px 10px}
+.admin-user-row .inline-check{white-space:nowrap;font-size:11px}
+.compact-form{grid-template-columns:minmax(200px,1fr) auto auto;align-items:end}
+.workspace-json{max-height:170px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#91a4c7;font-size:10px}
+.contest-moderation-controls{margin-top:14px;padding:13px;border:1px dashed #405779;border-radius:10px}
+.contest-moderation-controls[hidden]{display:none}
+.contest-moderation-controls label{display:block;color:#bac9e4;font-size:11px;margin-bottom:7px}
+.inline-action-row{display:flex;gap:8px}
+.inline-action-row select{flex:1;min-width:0;border:1px solid #354765;border-radius:8px;background:#0a1427;color:#edf2ff;padding:9px}
+.contest-detail-problems .danger.secondary{background:#48212b;color:#fecdd3}
+@media(max-width:760px){
+  .workspace-form,.compact-form{grid-template-columns:1fr}
+  .workspace-form .wide{grid-column:auto}
+  .admin-user-controls{grid-template-columns:1fr 1fr}
+  .admin-user-controls button{grid-column:1/-1}
+  .inline-action-row{flex-direction:column}
+}
