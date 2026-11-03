@@ -100,6 +100,7 @@ async function processSubmission(pool, submission, testCases, language) {
     for (let index = 0; index < testCases.length; index += 1) {
       const testNumber = index + 1;
       const testCase = testCases[index];
+      await pool.query("UPDATE public.submission SET worker_lease_until=CURRENT_TIMESTAMP + INTERVAL '2 minutes' WHERE submission_id=$1 AND execution_status='RUNNING'", [submission.submission_id]);
       const result = await executeTestCase({
         sourceCode: submission.code,
         language,
@@ -134,7 +135,7 @@ async function processSubmission(pool, submission, testCases, language) {
     await pool.query(
       `UPDATE public.submission
        SET verdict_id=$1, time_taken_ms=$2, memory_used_kb=$3,
-           execution_status='COMPLETED', execution_error=NULL
+           execution_status='COMPLETED', execution_error=NULL,worker_lease_until=NULL
        WHERE submission_id=$4`,
       [finalVerdictId, totalTime, maximumMemory, submission.submission_id]
     );
@@ -154,7 +155,7 @@ async function processSubmission(pool, submission, testCases, language) {
     console.error('Submission execution failed:', error.message);
     await pool.query(
       `UPDATE public.submission
-       SET execution_status='FAILED',
+       SET execution_status='FAILED',worker_lease_until=NULL,
            execution_error='The execution service could not complete this request. Please retry.'
        WHERE submission_id=$1`,
       [submission.submission_id]
