@@ -21,6 +21,9 @@ const createNotificationRouter = require('./notification-routes');
 const { startSubmissionWorkers } = require('./submission-worker');
 
 const app = express();
+// Render terminates HTTPS at its reverse proxy; trust its forwarded protocol
+// so secure cookies and same-origin checks use the public request scheme.
+app.set('trust proxy', 1);
 const port = Number(process.env.PORT || 3000);
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
   throw new Error('Set SESSION_SECRET in .env to a random value of at least 32 characters.');
