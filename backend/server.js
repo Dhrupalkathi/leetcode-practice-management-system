@@ -25,6 +25,17 @@ const app = express();
 // so secure cookies and same-origin checks use the public request scheme.
 app.set('trust proxy', 1);
 const port = Number(process.env.PORT || 3000);
+
+// Lightweight diagnostics: confirm whether requests reach the Node process.
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// Liveness endpoint deliberately bypasses database and session middleware.
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ ok: true, service: 'leetcode-practice-management-system' });
+});
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
   throw new Error('Set SESSION_SECRET in .env to a random value of at least 32 characters.');
 }
