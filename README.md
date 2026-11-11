@@ -136,3 +136,14 @@ Do not deploy or expose this application until the final test plan is executed, 
 
 `docs/FINAL_TEST_PLAN.md` is the authoritative test register. It documents what to test, why, how, expected results and the ordered final execution sequence. Per the project workflow, execute the full test plan after functionality development is complete; do not treat code presence or syntax review as functional verification.
 
+
+## Database Explorer and presentation material
+
+The deployed frontend includes a **Database Explorer** at `/database-lab.html`, linked from the main application. It provides:
+- Curated backend SQL examples for major workflows, with parameter explanations and security notes. It is a display/copy learning tool, not a live SQL execution endpoint.
+- A logical ER model grouped by identity, problem catalogue, execution, contests, assessments and governance.
+- Database design notes explaining junction tables and data ownership.
+
+See [docs/PRESENTATION_GUIDE.md](docs/PRESENTATION_GUIDE.md) for the complete feature-by-feature presentation outline, role responsibilities, implemented security controls, limitations, demo sequence and likely viva questions.
+
+**ERD scope note:** the repository snapshot includes incremental migrations and application SQL but not the original base-schema DDL. The explorer labels its model as a logical schema map; confirm base-table constraints against the live PostgreSQL catalog before presenting every relationship as a verified physical FK.
