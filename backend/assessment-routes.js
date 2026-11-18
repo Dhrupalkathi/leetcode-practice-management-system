@@ -108,7 +108,7 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
       try {
         await client.query('BEGIN');
         const active = await client.query(
-          'SELECT problem_id FROM public.problem WHERE is_active=TRUE AND COALESCE(question_type,'CODING')='CODING' AND problem_id=ANY($1::integer[])',
+          `SELECT problem_id FROM public.problem WHERE is_active=TRUE AND COALESCE(question_type,'CODING')='CODING' AND problem_id=ANY($1::integer[])`,
           [input.problemIds]
         );
         if (active.rowCount !== input.problemIds.length) {
@@ -185,7 +185,7 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
           return res.status(409).json({ error: 'Assessment not found or has already started.' });
         }
         const active = await client.query(
-          'SELECT problem_id FROM public.problem WHERE is_active=TRUE AND problem_id=ANY($1::integer[])',
+          `SELECT problem_id FROM public.problem WHERE is_active=TRUE AND COALESCE(question_type,'CODING')='CODING' AND problem_id=ANY($1::integer[])`,
           [input.problemIds]);
         if (active.rowCount !== input.problemIds.length) {
           await client.query('ROLLBACK');
