@@ -670,10 +670,11 @@ async function loadAssessmentOrganizations() {
   const isAdmin = currentUser?.role_category === 'Admin';
   const isOrganizer = currentUser?.role_category === 'Organizer';
   const hasOrganization = assessmentOrganizations.length > 0;
-  $('#assessment-organization-field').hidden = !isAdmin && hasOrganization;
-  select.disabled = !isAdmin;
-  select.required = isAdmin;
+  $('#assessment-organization-field').hidden = isAdmin ? !hasOrganization : hasOrganization;
+  select.disabled = !isAdmin || !hasOrganization;
+  select.required = isAdmin && hasOrganization;
   if (!isAdmin && hasOrganization) select.value = String(assessmentOrganizations[0].organization_id);
+  if (isAdmin && assessmentOrganizations.length === 1) select.value = String(assessmentOrganizations[0].organization_id);
   if (summary) {
     summary.hidden = isAdmin || !hasOrganization;
     summary.textContent = hasOrganization ? 'Assessment organization: ' + assessmentOrganizations[0].org_name : '';
@@ -681,7 +682,7 @@ async function loadAssessmentOrganizations() {
   if (help) {
     help.hidden = hasOrganization;
     help.textContent = isAdmin
-      ? 'No organization is available yet. Create an organization in the Admin workspace before creating an assessment.'
+      ? 'No organizations are registered yet. You can create an admin-managed assessment without assigning it to an organization.'
       : 'Your Organizer profile is not linked to an organization yet. Ask an Admin to assign your organization before creating assessments.';
   }
   return assessmentOrganizations;
@@ -759,12 +760,12 @@ async function openAssessmentForm(assessmentId=null) {
     ]);
     const eligibleCount=populateAssessmentProblemOptions();
     const isAdmin=currentUser?.role_category==='Admin';
-    const canCreateForOrganization=organizationsLoaded.length>0;
+    const canCreateForOrganization=isAdmin||organizationsLoaded.length>0;
     $('#assessment-save').disabled=!problemsLoaded||eligibleCount===0||!canCreateForOrganization;
     if(!problemsLoaded)throw new Error('Could not load the question catalogue. Refresh and try again.');
     if(!eligibleCount)throw new Error('No active coding questions are available. Publish at least one coding question first.');
     if(!canCreateForOrganization)throw new Error(isAdmin
-      ? 'No organization exists yet. Create an organization before creating an assessment.'
+      ? 'No organization is registered. This assessment can be managed by Admin without an organization.'
       : 'Your Organizer profile is not linked to an organization. Ask an Admin to assign one.');
     if(assessmentId){
       const detail=await api('/api/assessments/'+assessmentId);
@@ -1984,7 +1985,7 @@ $('#assessment-form').addEventListener('submit',async(event)=>{
     start_time:dateTimeLocalToIso($('#assessment-start').value),end_time:dateTimeLocalToIso($('#assessment-end').value),
     time_limit_minutes:Number($('#assessment-time-limit').value),problem_ids:problemIds
   };
-  if(currentUser?.role_category==='Admin')body.organization_id=Number($('#assessment-organization').value);
+  if(currentUser?.role_category==='Admin' && $('#assessment-organization').value)body.organization_id=Number($('#assessment-organization').value);
   $('#assessment-save').disabled=true;$('#assessment-form-error').textContent='';
   try{
     const result=await api(id?'/api/assessments/'+id:'/api/assessments',{
