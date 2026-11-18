@@ -215,7 +215,7 @@ function updateAccountUI() {
   $('#account-status').textContent = signedIn
     ? currentUser.name + ' · ' + currentUser.role_name
     : 'Not signed in';
-  $('#new-button').hidden = !(signedIn && ['Organizer','Admin'].includes(currentUser.role_category));
+  $('#new-button').hidden = !signedIn;
   $('#progress-panel').hidden = !(signedIn && currentUser.role_category === 'Learner');
   $('#create-contest-button').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
   $('#assessment-section').hidden = !(signedIn && ['Organizer', 'Admin'].includes(currentUser.role_category));
@@ -1297,9 +1297,44 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
     $('#detail-id').textContent = 'Problem #' + problem.problem_id;
     $('#detail-fields').replaceChildren();
     addDetailField($('#detail-fields'), 'Problem statement', problem.problem_statement);
-    addDetailField($('#detail-fields'), 'Input format', problem.input_format);
-    addDetailField($('#detail-fields'), 'Output format', problem.output_format);
-    addDetailField($('#detail-fields'), 'Constraints', problem.constraints);
+    const questionType=problem.question_type||'CODING';
+    if(questionType==='CODING') {
+      addDetailField($('#detail-fields'), 'Input format', problem.input_format);
+      addDetailField($('#detail-fields'), 'Output format', problem.output_format);
+    }
+    addDetailField($('#detail-fields'), 'Constraints / instructions', problem.constraints);
+    $('#question-answer-workspace').hidden=questionType==='CODING'||!currentUser;
+    $('#submission-workspace').hidden=questionType!=='CODING'||!canSubmitCode();
+    const answerHost=$('#question-answer-input');
+    answerHost.replaceChildren();
+    if(questionType!=='CODING'&&currentUser) {
+      const config=problem.question_config||{};
+      if(questionType==='MCQ_SINGLE'||questionType==='MCQ_MULTI') {
+        for(const text of (config.options||[])) {
+          const label=document.createElement('label');
+          const input=document.createElement('input');
+          input.type=questionType==='MCQ_SINGLE'?'radio':'checkbox';
+          input.name='question-answer-choice';
+          input.value=text;
+          label.append(input,document.createTextNode(' '+text));
+          answerHost.append(label);
+        }
+      } else if(questionType==='TRUE_FALSE') {
+        const select=document.createElement('select');
+        select.id='question-answer-text';
+        for(const value of ['true','false']) {
+          const option=document.createElement('option'); option.value=value;
+          option.textContent=value==='true'?'True':'False'; select.append(option);
+        }
+        answerHost.append(select);
+      } else {
+        const input=document.createElement('textarea');
+        input.id='question-answer-text'; input.rows=5; input.maxLength=10000;
+        input.placeholder=questionType==='SQL'?'Write your SQL query…':'Type your answer…';
+        answerHost.append(input);
+      }
+    }
+    $('#question-answer-status').textContent='';
 
     addTopicChips($('#detail-topics'), problem.topics);
     const tests = $('#detail-samples');
@@ -1354,7 +1389,7 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
       }
     }
 
-    await setupSubmissionWorkspace(problemId);
+    if(questionType==='CODING') await setupSubmissionWorkspace(problemId);
 
     const dialog = $('#problem-dialog');
     if (!dialog.open) dialog.showModal();
