@@ -1181,13 +1181,29 @@ function collectProblemTopicIds() {
   return [...$('#problem-topic-options').querySelectorAll('input[type=checkbox]:checked')].map((input) => Number(input.value));
 }
 
-async function openForm(problem = null) {
+async function updateQuestionTypeFields() {
+  const type = $('#question-type').value;
+  const coding = type === 'CODING';
+  $('#question-options-field').hidden = !['MCQ_SINGLE','MCQ_MULTI'].includes(type);
+  $('#question-answer-field').hidden = coding || ['MCQ_SINGLE','MCQ_MULTI'].includes(type);
+  $('#question-answer-field').firstChild.textContent = type === 'SQL' ? 'Expected result / marking criteria' : type === 'TRUE_FALSE' ? 'Correct answer (true or false)' : 'Correct / accepted answer';
+  $('#question-answer').placeholder = type === 'TRUE_FALSE' ? 'true or false' : type === 'SQL' ? 'Expected result or marking criteria' : 'Expected answer';
+  $('#question-type-help').textContent = coding ? 'Coding questions use the isolated code runner and test cases.' : type === 'SQL' ? 'SQL responses are collected for reviewer marking; they are not run against the production database.' : 'Objective and text answers are checked against the configured answer key.';
+  $('#problem-test-cases-field').hidden = !coding;
+  $('#problem-input-format-field').hidden = !coding;
+  $('#problem-output-format-field').hidden = !coding;
+}
+function openForm(problem = null) {
   $('#problem-form').reset();
   $('#form-error').textContent = '';
   $('#save-button').disabled = false;
   $('#problem-id').value = problem?.problem_id ?? '';
   $('#form-title').textContent = problem ? 'Edit problem #' + problem.problem_id : 'Create a problem';
   $('#title').value = problem?.title ?? '';
+  $('#question-type').value = problem?.question_type || 'CODING';
+  $('#question-options').value = (problem?.question_config?.options || []).join('\n');
+  $('#question-answer').value = '';
+  updateQuestionTypeFields();
   $('#difficulty').value = problem?.difficulty ?? 'Easy';
   $('#problem-statement').value = problem?.problem_statement ?? '';
   $('#input-format').value = problem?.input_format ?? '';
@@ -1227,7 +1243,7 @@ async function openForm(problem = null) {
         $('#save-button').disabled = true;
       }
     }
-    const managed = problem
+    const managed = problem && (problem.question_type || 'CODING') === 'CODING'
       ? await api('/api/problems/' + problem.problem_id + '/test-cases/manage')
       : { test_cases: [{ input_data: '', expected_output: '', is_hidden: false }], topic_ids: [], test_cases_locked: false };
     renderProblemTopicOptions(managed.topic_ids || []);
@@ -1237,7 +1253,8 @@ async function openForm(problem = null) {
     $('#add-problem-test-case').disabled = locked;
     const testCases = managed.test_cases || [];
     for (const testCase of testCases) appendProblemTestCase(testCase, locked);
-    if (testCases.length === 0) appendProblemTestCase({}, locked);
+    if (testCases.length === 0 && $('#question-type').value === 'CODING') appendProblemTestCase({}, locked);
+    updateQuestionTypeFields();
   } catch (error) {
     $('#problem-test-case-list').replaceChildren(element('p', 'error', error.message));
     $('#save-button').disabled = true;
@@ -1272,6 +1289,7 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
   try {
     const payload = await api('/api/problems/' + problemId);
     const problem = payload.problem;
+    $('#detail-id').dataset.questionType = problem.question_type || 'CODING';
     $('#detail-title').textContent = problem.title;
     const level = $('#detail-difficulty');
     level.textContent = problem.difficulty;
@@ -1965,6 +1983,22 @@ $('#search').addEventListener('input', render);
 $('#difficulty-filter').addEventListener('change', render);
 $('#topic-filter').addEventListener('change', render);
 $('#show-inactive').addEventListener('change', loadProblems);
+
+$('#question-type').addEventListener('change', updateQuestionTypeFields);
+$('#question-answer-submit').addEventListener('click', async () => {
+  const type = $('#detail-id').dataset.questionType;
+  let answer;
+  if (type === 'MCQ_SINGLE' || type === 'MCQ_MULTI') {
+    const selected = [...document.querySelectorAll('input[name="question-answer-choice"]:checked')].map(input => input.value);
+    answer = type === 'MCQ_SINGLE' ? (selected[0] || '') : selected;
+  } else { answer = $('#question-answer-text')?.value ?? ''; }
+  try {
+    $('#question-answer-submit').disabled = true;
+    const result = await api('/api/questions/' + currentProblemId + '/answers', { method: 'POST', body: JSON.stringify({ answer }) });
+    $('#question-answer-status').textContent = result.attempt.feedback || 'Answer submitted.';
+  } catch (error) { $('#question-answer-status').textContent = error.message; }
+  finally { $('#question-answer-submit').disabled = false; }
+});
 
 $('#problem-form').addEventListener('submit', async (event) => {
   event.preventDefault();
