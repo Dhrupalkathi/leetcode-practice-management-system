@@ -1192,6 +1192,10 @@ async function updateQuestionTypeFields() {
   $('#problem-test-cases-field').hidden = !coding;
   $('#problem-input-format-field').hidden = !coding;
   $('#problem-output-format-field').hidden = !coding;
+  $('#input-format').required = coding;
+  $('#output-format').required = coding;
+  $('#question-options').required = ['MCQ_SINGLE','MCQ_MULTI'].includes(type);
+  $('#question-answer').required = !coding && !['MCQ_SINGLE','MCQ_MULTI'].includes(type);
 }
 async function openForm(problem = null) {
   $('#problem-form').reset();
@@ -1209,9 +1213,7 @@ async function openForm(problem = null) {
   $('#input-format').value = problem?.input_format ?? '';
   $('#output-format').value = problem?.output_format ?? '';
   $('#constraints').value = problem?.constraints ?? '';
-  const adminCreating = !problem && currentUser?.role_category === 'Admin';
-  $('#problem-owner-field').hidden = !adminCreating;
-  $('#problem-owner').replaceChildren();
+  const adminCreating = false;
   $('#form-panel').hidden = false;
   $('#problem-test-case-list').replaceChildren(element('p', 'muted', 'Loading test-case editor…'));
   $('#problem-test-cases-locked').hidden = true;
@@ -1224,25 +1226,6 @@ async function openForm(problem = null) {
     // whether the initial page-load request completed before the user clicked.
     await loadTopics();
     renderProblemTopicOptions(problem?.topics?.map((topic) => topic.topic_id) || []);
-    if (adminCreating) {
-      const owners = await api('/api/problem-organizers');
-      const select = $('#problem-owner');
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = 'Select an Organizer owner';
-      placeholder.selected = true;
-      select.append(placeholder);
-      for (const owner of owners.organizers || []) {
-        const option = document.createElement('option');
-        option.value = owner.organizer_id;
-        option.textContent = owner.organizer_name + ' · ' + (owner.organization_name || 'Organization not assigned');
-        select.append(option);
-      }
-      if (!owners.organizers?.length) {
-        placeholder.textContent = 'No active Organizer profiles available';
-        $('#save-button').disabled = true;
-      }
-    }
     const managed = problem && (problem.question_type || 'CODING') === 'CODING'
       ? await api('/api/problems/' + problem.problem_id + '/test-cases/manage')
       : { test_cases: [{ input_data: '', expected_output: '', is_hidden: false }], topic_ids: [], test_cases_locked: false };
