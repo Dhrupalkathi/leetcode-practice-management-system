@@ -1971,15 +1971,20 @@ $('#problem-form').addEventListener('submit', async (event) => {
   const id = $('#problem-id').value;
   const body = {
     title: $('#title').value,
+    question_type: $('#question-type').value,
+    question_config: { options: $('#question-options').value.split('\\n').map(v => v.trim()).filter(Boolean), expected_result: $('#question-answer').value.trim() },
+    answer_key: ['MCQ_SINGLE','TRUE_FALSE','SHORT_ANSWER','FILL_BLANK'].includes($('#question-type').value)
+      ? ($('#question-type').value === 'TRUE_FALSE' ? $('#question-answer').value.trim().toLowerCase() === 'true' : $('#question-answer').value.trim())
+      : $('#question-type').value === 'MCQ_MULTI' ? $('#question-answer').value.split('\\n').map(v => v.trim()).filter(Boolean) : null,
     difficulty: $('#difficulty').value,
     problem_statement: $('#problem-statement').value,
     input_format: $('#input-format').value,
     output_format: $('#output-format').value,
     constraints: $('#constraints').value,
     topic_ids: collectProblemTopicIds(),
-    test_cases: collectProblemTestCases()
+    test_cases: $('#question-type').value === 'CODING' ? collectProblemTestCases() : []
   };
-  if (!id && currentUser?.role_category === 'Admin') {
+  if (!id && currentUser?.role_category === 'Admin' && $('#problem-owner').value) {
     body.organizer_id = Number($('#problem-owner').value);
   }
   $('#save-button').disabled = true;
@@ -1991,7 +1996,7 @@ $('#problem-form').addEventListener('submit', async (event) => {
     });
     $('#form-panel').hidden = true;
     notify(result.message || (id ? 'Changes submitted for Reviewer approval.' : 'Problem submitted for Reviewer approval.'), 'success');
-    if (result.problem?.review_status === 'PENDING_REVIEW') $('#show-inactive').checked = true;
+    if (result.problem?.review_status === 'PENDING_REVIEW' && ['Admin','Reviewer','Organizer'].includes(currentUser?.role_category)) $('#show-inactive').checked = true;
     await loadProblems();
   } catch (error) {
     $('#form-error').textContent = error.message;
