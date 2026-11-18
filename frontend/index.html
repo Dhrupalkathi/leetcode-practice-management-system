@@ -157,17 +157,21 @@
       <label id="question-options-field" class="wide" hidden>Answer options (one per line)<textarea id="question-options" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea></label>
       <label id="question-answer-field" class="wide" hidden>Correct answer / accepted answer(s)<textarea id="question-answer" rows="2" placeholder="For multiple-select, separate correct options with a new line."></textarea></label>
       <p id="question-type-help" class="muted wide">Coding questions use language-specific source code and test cases.</p>
+      <label class="wide">Question type<select id="question-type"><option value="CODING">Programming / coding</option><option value="MCQ_SINGLE">Single-choice MCQ</option><option value="MCQ_MULTI">Multiple-select MCQ</option><option value="TRUE_FALSE">True / False</option><option value="SHORT_ANSWER">Short answer</option><option value="FILL_BLANK">Fill in the blanks</option><option value="SQL">SQL / database question</option></select></label>
+      <label id="question-options-field" class="wide" hidden>Answer options (one per line)<textarea id="question-options" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea></label>
+      <label id="question-answer-field" class="wide" hidden>Correct / accepted answer<textarea id="question-answer" rows="2"></textarea></label>
+      <p id="question-type-help" class="muted wide">Coding questions use the code runner.</p>
       <label>Difficulty<select id="difficulty" name="difficulty" required><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option></select></label>
       <label class="wide">Problem statement<textarea id="problem-statement" name="problem_statement" rows="5" required></textarea></label>
-      <label>Input format<textarea id="input-format" name="input_format" rows="3" required></textarea></label>
-      <label>Output format<textarea id="output-format" name="output_format" rows="3" required></textarea></label>
+      <label id="problem-input-format-field">Input format<textarea id="input-format" name="input_format" rows="3" required></textarea></label>
+      <label id="problem-output-format-field">Output format<textarea id="output-format" name="output_format" rows="3" required></textarea></label>
       <label class="wide">Constraints (optional)<textarea id="constraints" name="constraints" rows="2"></textarea></label>
       <fieldset class="editor-fieldset wide">
         <legend>Topics / tags</legend>
         <p class="muted">Select one or more topics so learners can discover this problem by topic.</p>
         <div id="problem-topic-options" class="problem-topic-options"></div>
       </fieldset>
-      <fieldset class="editor-fieldset wide">
+      <fieldset id="problem-test-cases-field" class="editor-fieldset wide">
         <legend>Test cases</legend>
         <p class="muted">Sample test cases are visible to learners. Hidden test cases are used for final judging and are never returned in the public problem details.</p>
         <p id="problem-test-cases-locked" class="locked-note" hidden>Test cases are locked because submissions already exist for this problem. To preserve historical judging, existing input/output and visibility cannot be changed.</p>
@@ -465,6 +469,12 @@
     <h3>Review feedback</h3>
     <p class="muted">Reviewer decisions and comments for this problem.</p>
     <div id="problem-review-history-list" class="workspace-list"></div>
+  </section>
+  <section id="question-answer-workspace" class="detail-section" hidden>
+    <h3>Your answer</h3>
+    <div id="question-answer-input"></div>
+    <button id="question-answer-submit" type="button">Submit answer</button>
+    <p id="question-answer-status" class="notice" role="status" aria-live="polite"></p>
   </section>
   <section id="question-answer-workspace" class="detail-section" hidden>
     <h3>Your answer</h3>
