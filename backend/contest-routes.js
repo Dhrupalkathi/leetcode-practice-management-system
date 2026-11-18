@@ -208,7 +208,7 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
       await client.query('BEGIN');
       const hasSubmissions = await client.query('SELECT 1 FROM public.submission WHERE contest_id=$1 LIMIT 1', [req.contest.contest_id]);
       if (hasSubmissions.rowCount) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'A contest cannot be reconfigured after submissions have been made.' }); }
-      const active = await client.query('SELECT problem_id FROM public.problem WHERE is_active=TRUE AND problem_id=ANY($1::integer[])', [input.ids]);
+      const active = await client.query(`SELECT problem_id FROM public.problem WHERE is_active=TRUE AND COALESCE(question_type,'CODING')='CODING' AND problem_id=ANY($1::integer[])`, [input.ids]);
       if (active.rowCount!==input.ids.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Every selected problem must exist and be active.' }); }
       const result = await client.query(
         `UPDATE public.contest SET name=$1,start_time=$2,end_time=$3,rules=$4,
