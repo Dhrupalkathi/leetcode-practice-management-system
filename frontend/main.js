@@ -774,7 +774,7 @@ async function openAssessmentForm(assessmentId=null) {
     }
     $('#assessment-editor').hidden=false;
     $('#assessment-editor').scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(error){$('#assessment-form-error').textContent=error.message;}
+  }catch(error){$('#assessment-save').disabled=true;$('#assessment-form-error').textContent=error.message;}
 }
 
 function renderAssessmentProblems(rows) {
@@ -944,6 +944,12 @@ function toDateTimeLocal(value) {
   const date = new Date(value);
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+function dateTimeLocalToIso(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
 }
 
 async function openContestForm(contestId = null) {
@@ -1970,7 +1976,7 @@ $('#assessment-form').addEventListener('submit',async(event)=>{
   const problemIds=Array.from($('#assessment-problem-ids').selectedOptions).map(option=>Number(option.value));
   const body={
     title:$('#assessment-title-input').value,description:$('#assessment-description-input').value,
-    start_time:$('#assessment-start').value,end_time:$('#assessment-end').value,
+    start_time:dateTimeLocalToIso($('#assessment-start').value),end_time:dateTimeLocalToIso($('#assessment-end').value),
     time_limit_minutes:Number($('#assessment-time-limit').value),problem_ids:problemIds
   };
   if(currentUser?.role_category==='Admin')body.organization_id=Number($('#assessment-organization').value);
@@ -2021,8 +2027,8 @@ $('#contest-form').addEventListener('submit', async (event) => {
   const problemIds = Array.from($('#contest-problem-ids').selectedOptions).map((option) => Number(option.value));
   const body = {
     name: $('#contest-name').value,
-    start_time: $('#contest-start').value,
-    end_time: $('#contest-end').value,
+    start_time: dateTimeLocalToIso($('#contest-start').value),
+    end_time: dateTimeLocalToIso($('#contest-end').value),
     rules: $('#contest-rules').value,
     problem_ids: problemIds,
     points_per_problem: Number($('#contest-points').value),
