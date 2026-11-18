@@ -211,9 +211,10 @@
       <label>Points per solved problem<input id="contest-points" type="number" min="1" max="10000" value="100" required></label>
       <label>Penalty per wrong attempt (minutes)<input id="contest-wrong-penalty" type="number" min="0" max="120" value="5" required></label>
       <label class="wide contest-time-penalty-toggle"><input id="contest-time-penalty" type="checkbox"> Include minutes taken to solve in leaderboard penalty</label>
-      <label class="wide">Select problems
-        <select id="contest-problem-ids" multiple size="7" required aria-describedby="contest-scoring-help"></select>
+      <label class="wide">Select coding problems
+        <select id="contest-problem-ids" multiple size="7" required aria-describedby="contest-scoring-help contest-problem-help"></select>
       </label>
+      <p id="contest-problem-help" class="muted wide">Only active coding problems can be added to a contest.</p>
       <p id="contest-scoring-help" class="muted wide">Default scoring: 100 points per solved problem. Each wrong full submission before first acceptance adds 5 penalty minutes. You can also choose to include elapsed solve time in the penalty.</p>
       <div class="form-actions">
         <button id="contest-save" type="submit">Save contest</button>
@@ -280,10 +281,11 @@
       <label>Start time<input id="assessment-start" type="datetime-local" required></label>
       <label>End time<input id="assessment-end" type="datetime-local" required></label>
       <label>Time limit (minutes)<input id="assessment-time-limit" type="number" min="1" max="1440" value="90" required></label>
-      <label id="assessment-organization-field">Organization<select id="assessment-organization" required></select></label>
-      <label class="wide">Assigned problems
-        <select id="assessment-problem-ids" multiple size="7" required></select>
+      <label id="assessment-organization-field">Organization<select id="assessment-organization"></select></label>\n      <p id="assessment-organization-help" class="muted wide" hidden></p>
+      <label class="wide">Assigned coding questions
+        <select id="assessment-problem-ids" multiple size="7" required aria-describedby="assessment-problem-help"></select>
       </label>
+      <p id="assessment-problem-help" class="muted wide" hidden></p>
       <p class="muted wide">Candidates receive a one-time invitation link. This development build generates the link for you to share; automatic email delivery is not configured.</p>
       <div class="form-actions">
         <button id="assessment-save" type="submit">Save assessment</button>
