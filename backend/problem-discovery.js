@@ -49,6 +49,8 @@ function validateProblem(body) {
     answerKey={expected_result:String(config.expected_result||'').trim()};
   }
   if(questionType==='CODING') answerKey=null;
+  // question_config is public; keep expected SQL results only in the private answer-key table.
+  if(questionType==='SQL') delete config.expected_result;
   return {errors,fields,topicIds,testCases,questionType,config,answerKey};
 }
 
