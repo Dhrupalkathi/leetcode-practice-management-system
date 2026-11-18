@@ -2036,9 +2036,6 @@ $('#problem-form').addEventListener('submit', async (event) => {
     topic_ids: collectProblemTopicIds(),
     test_cases: $('#question-type').value === 'CODING' ? collectProblemTestCases() : []
   };
-  if (!id && currentUser?.role_category === 'Admin' && $('#problem-owner').value) {
-    body.organizer_id = Number($('#problem-owner').value);
-  }
   $('#save-button').disabled = true;
   $('#form-error').textContent = '';
   try {
