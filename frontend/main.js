@@ -653,6 +653,7 @@ async function loadAssessmentOrganizations() {
   assessmentOrganizations = result.organizations || [];
   const select = $('#assessment-organization');
   const help = $('#assessment-organization-help');
+  const summary = $('#assessment-organization-summary');
   select.replaceChildren();
   const placeholder = document.createElement('option');
   placeholder.value = '';
@@ -673,6 +674,10 @@ async function loadAssessmentOrganizations() {
   select.disabled = !isAdmin;
   select.required = isAdmin;
   if (!isAdmin && hasOrganization) select.value = String(assessmentOrganizations[0].organization_id);
+  if (summary) {
+    summary.hidden = isAdmin || !hasOrganization;
+    summary.textContent = hasOrganization ? 'Assessment organization: ' + assessmentOrganizations[0].org_name : '';
+  }
   if (help) {
     help.hidden = hasOrganization;
     help.textContent = isAdmin
