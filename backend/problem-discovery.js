@@ -82,7 +82,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       try {
         const result=await pool.query(
           `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
-                  p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,p.question_type,p.question_config,
+                  p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,p.question_type,p.question_config,p.question_type,p.question_config,
                   COALESCE((SELECT json_agg(json_build_object('topic_id',t.topic_id,'name',t.name) ORDER BY t.name)
                     FROM public.problem_topic pt JOIN public.topic t ON t.topic_id=pt.topic_id
                     WHERE pt.problem_id=p.problem_id),'[]'::json) AS topics
@@ -289,6 +289,42 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       if(!result.rowCount) return res.status(404).json({error:'Problem not found.'});
       if(audit) await audit(req.user.user_id,'PROBLEM_RETIRED','problem',id,{title:result.rows[0].title});
       res.json({problem:result.rows[0],message:'Problem retired. Related history was preserved.'});
+    } catch(error){next(error);}
+  });
+
+  router.post('/questions/:id/answers', authRequired, async (req,res,next) => {
+    const id=Number(req.params.id);
+    if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid question ID.'});
+    const answer=req.body?.answer;
+    if(answer===undefined||answer===null||String(answer).trim()==='') return res.status(400).json({error:'Enter an answer before submitting.'});
+    try {
+      const question=await pool.query(
+        `SELECT p.problem_id,p.question_type,p.question_config,k.answer_key
+         FROM public.problem p LEFT JOIN public.problem_answer_key k ON k.problem_id=p.problem_id
+         WHERE p.problem_id=$1 AND p.is_active=TRUE`,[id]);
+      if(!question.rowCount) return res.status(404).json({error:'Active question not found.'});
+      const q=question.rows[0];
+      if(q.question_type==='CODING') return res.status(400).json({error:'Use the code editor for coding questions.'});
+      let correct=null,review='PENDING_REVIEW',feedback='Your response was submitted for review.';
+      const normalize=v=>String(v??'').trim().replace(/\\s+/g,' ').toLocaleLowerCase();
+      if(['MCQ_SINGLE','TRUE_FALSE'].includes(q.question_type)) {
+        correct=normalize(answer)===normalize(q.answer_key);
+      } else if(q.question_type==='MCQ_MULTI') {
+        const submitted=Array.isArray(answer)?answer.map(normalize).sort():[];
+        const expected=Array.isArray(q.answer_key)?q.answer_key.map(normalize).sort():[];
+        correct=submitted.length===expected.length&&submitted.every((v,i)=>v===expected[i]);
+      } else if(['SHORT_ANSWER','FILL_BLANK'].includes(q.question_type)) {
+        const expected=Array.isArray(q.answer_key)?q.answer_key:[q.answer_key];
+        correct=expected.some(v=>normalize(v)===normalize(answer));
+      } else if(q.question_type==='SQL') {
+        correct=null;
+      }
+      if(correct!==null){review='AUTO_GRADED';feedback=correct?'Correct answer.':'Not quite. Review the question and try again.';}
+      const saved=await pool.query(
+        `INSERT INTO public.question_attempt(problem_id,user_id,answer,is_correct,review_status,feedback)
+         VALUES($1,$2,$3::jsonb,$4,$5,$6) RETURNING question_attempt_id,submitted_at,is_correct,review_status,feedback`,
+        [id,req.user.user_id,JSON.stringify(answer),correct,review,feedback]);
+      res.status(201).json({attempt:saved.rows[0]});
     } catch(error){next(error);}
   });
 
