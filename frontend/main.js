@@ -2041,10 +2041,10 @@ $('#problem-form').addEventListener('submit', async (event) => {
   const body = {
     title: $('#title').value,
     question_type: $('#question-type').value,
-    question_config: { options: $('#question-options').value.split('\\n').map(v => v.trim()).filter(Boolean), expected_result: $('#question-answer').value.trim() },
+    question_config: { options: $('#question-options').value.split(/\r?\n/).map(v => v.trim()).filter(Boolean), expected_result: $('#question-answer').value.trim() },
     answer_key: ['MCQ_SINGLE','TRUE_FALSE','SHORT_ANSWER','FILL_BLANK'].includes($('#question-type').value)
       ? ($('#question-type').value === 'TRUE_FALSE' ? $('#question-answer').value.trim().toLowerCase() === 'true' : $('#question-answer').value.trim())
-      : $('#question-type').value === 'MCQ_MULTI' ? $('#question-answer').value.split('\\n').map(v => v.trim()).filter(Boolean) : null,
+      : $('#question-type').value === 'MCQ_MULTI' ? $('#question-answer').value.split(/\r?\n/).map(v => v.trim()).filter(Boolean) : null,
     difficulty: $('#difficulty').value,
     problem_statement: $('#problem-statement').value,
     input_format: $('#input-format').value,
