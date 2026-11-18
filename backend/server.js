@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const path = require('node:path');
+const fs = require('node:fs/promises');
 const crypto = require('node:crypto');
 const express = require('express');
 const helmet = require('helmet');
@@ -249,6 +250,19 @@ app.use((error,req,res,next)=>{
 });
 async function start(){
   try{
+    // Apply the additive general-question migration once before accepting traffic.
+    await pool.query(`CREATE TABLE IF NOT EXISTS public.app_schema_migrations (
+      migration_name TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+    const migrationName='010_general_question_types.sql';
+    const applied=await pool.query('SELECT 1 FROM public.app_schema_migrations WHERE migration_name=$1',[migrationName]);
+    if(!applied.rowCount){
+      const migration=await fs.readFile(path.join(__dirname,'..','database','migrations',migrationName),'utf8');
+      await pool.query(migration);
+      await pool.query('INSERT INTO public.app_schema_migrations(migration_name) VALUES($1) ON CONFLICT DO NOTHING',[migrationName]);
+      console.log('Applied database migration:',migrationName);
+    }
     // Clear partial results and re-queue any interrupted execution, including candidate jobs.
     await pool.query(
       `DELETE FROM public.submission_test_result
