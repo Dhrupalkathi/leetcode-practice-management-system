@@ -1085,6 +1085,12 @@ function renderProblemTopicOptions(selectedIds = []) {
   const container = $('#problem-topic-options');
   container.replaceChildren();
   const selected = new Set(selectedIds.map(Number));
+  if (!topics.length) {
+    const empty = element('p', 'muted', 'No topics are available yet. Add topics to the topic catalogue before creating a problem.');
+    empty.setAttribute('role', 'status');
+    container.append(empty);
+    return;
+  }
   for (const topic of topics) {
     const label = document.createElement('label');
     label.className = 'topic-option';
@@ -1198,6 +1204,10 @@ async function openForm(problem = null) {
   $('#title').focus();
   $('#form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
+    // Refresh the catalogue when the editor opens so it never depends on
+    // whether the initial page-load request completed before the user clicked.
+    await loadTopics();
+    renderProblemTopicOptions(problem?.topics?.map((topic) => topic.topic_id) || []);
     if (adminCreating) {
       const owners = await api('/api/problem-organizers');
       const select = $('#problem-owner');
@@ -1209,7 +1219,7 @@ async function openForm(problem = null) {
       for (const owner of owners.organizers || []) {
         const option = document.createElement('option');
         option.value = owner.organizer_id;
-        option.textContent = owner.organizer_name + ' · ' + owner.organization_name;
+        option.textContent = owner.organizer_name + ' · ' + (owner.organization_name || 'Organization not assigned');
         select.append(option);
       }
       if (!owners.organizers?.length) {
