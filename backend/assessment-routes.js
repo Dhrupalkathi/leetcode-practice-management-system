@@ -19,7 +19,9 @@ function validateAssessment(body) {
   if (!title) errors.push('Assessment title is required.');
   if (title.length > 150) errors.push('Assessment title must be 150 characters or fewer.');
   if (typeof description !== 'string') errors.push('Assessment description must be text.');
+  else if (description.length > 10000) errors.push('Assessment description must be 10000 characters or fewer.');
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) errors.push('Assessment end time must be after its start time.');
+  else if (start <= Date.now()) errors.push('Assessment start time must be in the future.');
   if (!Number.isSafeInteger(timeLimit) || timeLimit < 1 || timeLimit > 1440) errors.push('Time limit must be between 1 and 1440 minutes.');
   if (!problemIds.length) errors.push('Select at least one assessment problem.');
   if (problemIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) errors.push('Problem IDs must be positive integers.');
@@ -106,7 +108,7 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
       try {
         await client.query('BEGIN');
         const active = await client.query(
-          'SELECT problem_id FROM public.problem WHERE is_active=TRUE AND problem_id=ANY($1::integer[])',
+          'SELECT problem_id FROM public.problem WHERE is_active=TRUE AND COALESCE(question_type,'CODING')='CODING' AND problem_id=ANY($1::integer[])',
           [input.problemIds]
         );
         if (active.rowCount !== input.problemIds.length) {
