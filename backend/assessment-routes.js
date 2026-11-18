@@ -99,10 +99,19 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
       const scope = await organizationScope(req.user);
       if (!scope) return res.status(403).json({ error: 'An organization profile is required.' });
       const organizationId = scope.admin ? positiveId(req.body.organization_id) : scope.organizationId;
-      if (!organizationId) return res.status(400).json({ error: 'Select an organization for this assessment.' });
+      if (!organizationId && !scope.admin) {
+        return res.status(403).json({ error: 'Your Organizer profile must be linked to an organization before creating assessments.' });
+      }
       if (scope.admin) {
-        const org = await pool.query('SELECT 1 FROM public.organization WHERE organization_id=$1', [organizationId]);
-        if (!org.rowCount) return res.status(400).json({ error: 'Organization not found.' });
+        if (!organizationId) {
+          const organizations = await pool.query('SELECT COUNT(*)::integer AS count FROM public.organization');
+          if (Number(organizations.rows[0].count) > 0) {
+            return res.status(400).json({ error: 'Select an organization for this assessment.' });
+          }
+        } else {
+          const org = await pool.query('SELECT 1 FROM public.organization WHERE organization_id=$1', [organizationId]);
+          if (!org.rowCount) return res.status(400).json({ error: 'Organization not found.' });
+        }
       }
       const client = await pool.connect();
       try {
