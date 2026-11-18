@@ -634,7 +634,7 @@ function render() {
       if (!confirm('Retire "' + problem.title + '"? Existing submissions and related records will be preserved.')) return;
       try {
         await api('/api/problems/' + problem.problem_id + '/retire', { method: 'PATCH' });
-        notify('Problem #' + problem.problem_id + ' retired; history preserved.', 'success');
+        notify('Question #' + problem.problem_id + ' retired; history preserved.', 'success');
         await loadProblems();
       } catch (error) {
         notify(error.message, 'error');
@@ -1198,7 +1198,7 @@ async function openForm(problem = null) {
   $('#form-error').textContent = '';
   $('#save-button').disabled = false;
   $('#problem-id').value = problem?.problem_id ?? '';
-  $('#form-title').textContent = problem ? 'Edit problem #' + problem.problem_id : 'Create a problem';
+  $('#form-title').textContent = problem ? 'Edit question #' + problem.problem_id : 'Create a question';
   $('#title').value = problem?.title ?? '';
   $('#question-type').value = problem?.question_type || 'CODING';
   $('#question-options').value = (problem?.question_config?.options || []).join('\n');
