@@ -652,7 +652,14 @@ async function loadAssessmentOrganizations() {
   const result = await api('/api/organizations');
   assessmentOrganizations = result.organizations || [];
   const select = $('#assessment-organization');
+  const help = $('#assessment-organization-help');
   select.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Select an organization';
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  select.append(placeholder);
   for (const organization of assessmentOrganizations) {
     const option = document.createElement('option');
     option.value = organization.organization_id;
@@ -660,8 +667,18 @@ async function loadAssessmentOrganizations() {
     select.append(option);
   }
   const isAdmin = currentUser?.role_category === 'Admin';
-  $('#assessment-organization-field').hidden = !isAdmin;
+  const isOrganizer = currentUser?.role_category === 'Organizer';
+  const hasOrganization = assessmentOrganizations.length > 0;
+  $('#assessment-organization-field').hidden = !isAdmin && hasOrganization;
   select.disabled = !isAdmin;
+  select.required = isAdmin;
+  if (!isAdmin && hasOrganization) select.value = String(assessmentOrganizations[0].organization_id);
+  if (help) {
+    help.hidden = hasOrganization;
+    help.textContent = isAdmin
+      ? 'No organization is available yet. Create an organization in the Admin workspace before creating an assessment.'
+      : 'Your Organizer profile is not linked to an organization yet. Ask an Admin to assign your organization before creating assessments.';
+  }
   return assessmentOrganizations;
 }
 
@@ -711,19 +728,39 @@ async function loadAssessments() {
 
 function populateAssessmentProblemOptions(selected=[]) {
   const select=$('#assessment-problem-ids');select.replaceChildren();
-  for(const problem of problems.filter(p=>p.is_active)){
+  const eligible=problems.filter(p=>p.is_active&&(p.question_type||'CODING')==='CODING');
+  for(const problem of eligible){
     const option=document.createElement('option');option.value=problem.problem_id;
     option.textContent='#'+problem.problem_id+' · '+problem.title+' ('+problem.difficulty+')';
     option.selected=selected.includes(Number(problem.problem_id));select.append(option);
   }
+  const help=$('#assessment-problem-help');
+  if(help){
+    help.hidden=eligible.length>0;
+    help.textContent=problems.some(p=>p.is_active)
+      ? 'No active coding questions are available. This assessment workspace currently supports programming questions; publish a coding question first.'
+      : 'No active questions are available. Create and publish a coding question before setting up an assessment.';
+  }
+  return eligible.length;
 }
 
 async function openAssessmentForm(assessmentId=null) {
   $('#assessment-form').reset();$('#assessment-form-error').textContent='';$('#assessment-id').value=assessmentId||'';
   $('#assessment-form-title').textContent=assessmentId?'Edit upcoming assessment':'Create assessment';
   try{
-    await loadAssessmentOrganizations();
-    populateAssessmentProblemOptions();
+    const [organizationsLoaded,problemsLoaded]=await Promise.all([
+      loadAssessmentOrganizations(),
+      loadProblems()
+    ]);
+    const eligibleCount=populateAssessmentProblemOptions();
+    const isAdmin=currentUser?.role_category==='Admin';
+    const canCreateForOrganization=organizationsLoaded.length>0;
+    $('#assessment-save').disabled=!problemsLoaded||eligibleCount===0||!canCreateForOrganization;
+    if(!problemsLoaded)throw new Error('Could not load the question catalogue. Refresh and try again.');
+    if(!eligibleCount)throw new Error('No active coding questions are available. Publish at least one coding question first.');
+    if(!canCreateForOrganization)throw new Error(isAdmin
+      ? 'No organization exists yet. Create an organization before creating an assessment.'
+      : 'Your Organizer profile is not linked to an organization. Ask an Admin to assign one.');
     if(assessmentId){
       const detail=await api('/api/assessments/'+assessmentId);
       const a=detail.assessment;
@@ -896,7 +933,7 @@ async function loadContests() {
 
 function populateContestProblemOptions(selected = []) {
   const select = $('#contest-problem-ids'); select.replaceChildren();
-  for (const problem of problems.filter((item) => item.is_active)) {
+  for (const problem of problems.filter((item) => item.is_active && (item.question_type || 'CODING') === 'CODING')) {
     const option = document.createElement('option'); option.value = problem.problem_id;
     option.textContent = '#' + problem.problem_id + ' · ' + problem.title + ' (' + problem.difficulty + ')';
     option.selected = selected.includes(Number(problem.problem_id)); select.append(option);
@@ -912,7 +949,12 @@ function toDateTimeLocal(value) {
 async function openContestForm(contestId = null) {
   $('#contest-form').reset(); $('#contest-form-error').textContent = ''; $('#contest-id').value = contestId || '';
   $('#contest-form-title').textContent = contestId ? 'Edit upcoming contest' : 'Create a contest';
+  const problemsLoaded = await loadProblems();
   populateContestProblemOptions();
+  const eligibleContestProblems = problems.filter(p => p.is_active && (p.question_type || 'CODING') === 'CODING');
+  $('#contest-save').disabled = !problemsLoaded || eligibleContestProblems.length === 0;
+  if (!problemsLoaded) { $('#contest-form-error').textContent = 'Could not load the question catalogue. Refresh and try again.'; return; }
+  if (!eligibleContestProblems.length) { $('#contest-form-error').textContent = 'No active coding questions are available. Publish a coding question first.'; return; }
   if (contestId) {
     try {
       const payload = await api('/api/contests/' + contestId); const c = payload.contest;
@@ -1065,9 +1107,12 @@ async function loadProblems() {
     problems = payload.problems || [];
     render();
     populateContestProblemOptions();
+    return true;
   } catch (error) {
+    problems = [];
     list.textContent = error.message;
     notify(error.message, 'error');
+    return false;
   }
 }
 
