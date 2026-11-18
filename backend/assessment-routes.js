@@ -30,8 +30,8 @@ function validateAssessment(body) {
   return { errors, title, description: typeof description === 'string' ? description.trim() : '', startTime, endTime, timeLimit, problemIds };
 }
 
-function invitationUrl(token) {
-  const base = String(process.env.APP_BASE_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
+function invitationUrl(token, req) {
+  const base = String(process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
   return base + '/assessment.html#token=' + token;
 }
 
@@ -241,7 +241,7 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
         res.status(201).json({
           invitation: invitation.rows[0],
           candidate: candidate.rows[0],
-          invitation_url: invitationUrl(token),
+          invitation_url: invitationUrl(token,req),
           note: 'This invitation link is shown only once. Share it with the candidate using your approved communication channel.'
         });
       } catch (error) {
