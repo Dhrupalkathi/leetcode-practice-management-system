@@ -1193,7 +1193,7 @@ async function updateQuestionTypeFields() {
   $('#problem-input-format-field').hidden = !coding;
   $('#problem-output-format-field').hidden = !coding;
 }
-function openForm(problem = null) {
+async function openForm(problem = null) {
   $('#problem-form').reset();
   $('#form-error').textContent = '';
   $('#save-button').disabled = false;
