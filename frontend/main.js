@@ -1185,7 +1185,7 @@ async function updateQuestionTypeFields() {
   const type = $('#question-type').value;
   const coding = type === 'CODING';
   $('#question-options-field').hidden = !['MCQ_SINGLE','MCQ_MULTI'].includes(type);
-  $('#question-answer-field').hidden = coding || ['MCQ_SINGLE','MCQ_MULTI'].includes(type);
+  $('#question-answer-field').hidden = coding;
   $('#question-answer-field').firstChild.textContent = type === 'SQL' ? 'Expected result / marking criteria' : type === 'TRUE_FALSE' ? 'Correct answer (true or false)' : 'Correct / accepted answer';
   $('#question-answer').placeholder = type === 'TRUE_FALSE' ? 'true or false' : type === 'SQL' ? 'Expected result or marking criteria' : 'Expected answer';
   $('#question-type-help').textContent = coding ? 'Coding questions use the isolated code runner and test cases.' : type === 'SQL' ? 'SQL responses are collected for reviewer marking; they are not run against the production database.' : 'Objective and text answers are checked against the configured answer key.';
