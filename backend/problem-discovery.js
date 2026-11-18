@@ -178,7 +178,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
          RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
                    difficulty,is_active,review_status,created_at,created_by`,
         [input.fields.title,input.fields.problem_statement,input.fields.input_format,input.fields.output_format,
-         input.fields.constraints,input.fields.difficulty,req.user.organizer_id]
+         input.fields.constraints,input.fields.difficulty,creatorOrganizerId]
       );
       await addProblemRelations(client,created.rows[0].problem_id,input.topicIds,input.testCases);
       await client.query('COMMIT');
