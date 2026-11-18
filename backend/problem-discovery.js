@@ -294,6 +294,38 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     } catch(error){next(error);}
   });
 
+
+  router.get('/questions/review-queue', authRequired, allowRoles('Reviewer','Admin'), async (req,res,next) => {
+    try {
+      const result=await pool.query(
+        `SELECT a.question_attempt_id,a.problem_id,p.title,p.question_type,a.user_id,u.name AS learner_name,
+                a.answer,a.submitted_at
+         FROM public.question_attempt a
+         JOIN public.problem p ON p.problem_id=a.problem_id
+         JOIN public.users u ON u.user_id=a.user_id
+         WHERE a.review_status='PENDING_REVIEW'
+         ORDER BY a.submitted_at ASC LIMIT 200`);
+      res.json({attempts:result.rows});
+    } catch(error){next(error);}
+  });
+
+  router.patch('/questions/answers/:attemptId/review', authRequired, allowRoles('Reviewer','Admin'), async (req,res,next) => {
+    const attemptId=Number(req.params.attemptId);
+    if(!Number.isSafeInteger(attemptId)||attemptId<=0) return res.status(400).json({error:'Invalid answer ID.'});
+    if(typeof req.body?.is_correct!=='boolean') return res.status(400).json({error:'Choose whether the answer is correct.'});
+    const feedback=typeof req.body.feedback==='string'?req.body.feedback.trim().slice(0,2000):null;
+    try {
+      const result=await pool.query(
+        `UPDATE public.question_attempt
+         SET is_correct=$1,review_status='REVIEWED',feedback=$2
+         WHERE question_attempt_id=$3 AND review_status='PENDING_REVIEW'
+         RETURNING question_attempt_id,is_correct,review_status,feedback`,
+        [req.body.is_correct,feedback,attemptId]);
+      if(!result.rowCount) return res.status(404).json({error:'Pending answer not found.'});
+      res.json({attempt:result.rows[0],message:'Answer review saved.'});
+    } catch(error){next(error);}
+  });
+
   router.post('/questions/:id/answers', authRequired, async (req,res,next) => {
     const id=Number(req.params.id);
     if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid question ID.'});
