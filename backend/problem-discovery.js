@@ -4,30 +4,52 @@ const { notifyRoleCategories } = require('./notification-service');
 function validateProblem(body) {
   const errors=[];
   const fields={};
-  for(const field of ['title','problem_statement','input_format','output_format','difficulty']){
+  const questionType=String(body.question_type||'CODING').toUpperCase();
+  const supported=['CODING','MCQ_SINGLE','MCQ_MULTI','TRUE_FALSE','SHORT_ANSWER','FILL_BLANK','SQL'];
+  if(!supported.includes(questionType)) errors.push('Choose a supported question type.');
+  for(const field of ['title','problem_statement','difficulty']){
     if(typeof body[field]!=='string'||!body[field].trim()) errors.push(field+' is required.');
     else fields[field]=body[field].trim();
   }
   if(fields.title&&fields.title.length>150) errors.push('Title must be 150 characters or fewer.');
   if(!['Easy','Medium','Hard'].includes(fields.difficulty)) errors.push('Difficulty must be Easy, Medium, or Hard.');
+  for(const field of ['input_format','output_format']) {
+    if(questionType==='CODING' && (typeof body[field]!=='string'||!body[field].trim())) errors.push(field+' is required for coding questions.');
+    fields[field]=typeof body[field]==='string'?body[field].trim():'';
+  }
   if(body.constraints!==undefined&&body.constraints!==null&&typeof body.constraints!=='string') errors.push('Constraints must be text or null.');
   fields.constraints=typeof body.constraints==='string'?body.constraints.trim():null;
   const topicIds=Array.isArray(body.topic_ids)?body.topic_ids.map(Number):[];
-  if(!topicIds.length||topicIds.some((id)=>!Number.isSafeInteger(id)||id<=0)||new Set(topicIds).size!==topicIds.length){
-    errors.push('Select at least one valid, unique topic.');
-  }
+  if(topicIds.some((id)=>!Number.isSafeInteger(id)||id<=0)||new Set(topicIds).size!==topicIds.length) errors.push('Choose valid, unique topics.');
   const testCases=Array.isArray(body.test_cases)?body.test_cases:[];
-  if(testCases.length<1||testCases.length>100) errors.push('Add between 1 and 100 test cases.');
+  if(questionType==='CODING'&&(testCases.length<1||testCases.length>100)) errors.push('Add between 1 and 100 test cases for a coding question.');
   for(let i=0;i<testCases.length;i++){
     const item=testCases[i];
-    if(!item||typeof item.input_data!=='string'||typeof item.expected_output!=='string'){
-      errors.push('Each test case needs input data and expected output.');
-      break;
-    }
+    if(!item||typeof item.input_data!=='string'||typeof item.expected_output!=='string'){errors.push('Each test case needs input data and expected output.');break;}
     if(typeof item.is_hidden!=='boolean'){errors.push('Each test case must specify whether it is hidden.');break;}
     if(item.input_data.length>50000||item.expected_output.length>50000){errors.push('Each test case input/output must be 50000 characters or fewer.');break;}
   }
-  return {errors,fields,topicIds,testCases};
+  const config=body.question_config&&typeof body.question_config==='object'&&!Array.isArray(body.question_config)?body.question_config:{};
+  let answerKey=body.answer_key;
+  if(['MCQ_SINGLE','MCQ_MULTI'].includes(questionType)){
+    const options=Array.isArray(config.options)?config.options.map(v=>String(v).trim()).filter(Boolean):[];
+    if(options.length<2||options.length>10) errors.push('Add between 2 and 10 answer options.');
+    if(questionType==='MCQ_SINGLE'&&typeof answerKey!=='string') errors.push('Choose the correct option for this single-choice question.');
+    if(questionType==='MCQ_MULTI'&&(!Array.isArray(answerKey)||!answerKey.length)) errors.push('Choose at least one correct option.');
+    if(typeof answerKey==='string'&&!options.includes(answerKey)) errors.push('The correct answer must match an option.');
+    if(Array.isArray(answerKey)&&answerKey.some(v=>!options.includes(v))) errors.push('Every correct answer must match an option.');
+    config.options=options;
+  } else if(questionType==='TRUE_FALSE') {
+    if(typeof answerKey!=='boolean') errors.push('Choose True or False as the correct answer.');
+  } else if(['SHORT_ANSWER','FILL_BLANK'].includes(questionType)) {
+    if(typeof answerKey!=='string'||!answerKey.trim()) errors.push('Provide the expected answer for automatic checking.');
+    else answerKey=answerKey.trim();
+  } else if(questionType==='SQL') {
+    if(typeof config.expected_result!=='string'||!config.expected_result.trim()) errors.push('Provide the expected SQL result or explain the manual marking criteria.');
+    answerKey={expected_result:String(config.expected_result||'').trim()};
+  }
+  if(questionType==='CODING') answerKey=null;
+  return {errors,fields,topicIds,testCases,questionType,config,answerKey};
 }
 
 module.exports = function createProblemDiscoveryRouter({ pool, authRequired, allowRoles, audit }) {
@@ -60,7 +82,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       try {
         const result=await pool.query(
           `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
-                  p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,
+                  p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,p.question_type,p.question_config,
                   COALESCE((SELECT json_agg(json_build_object('topic_id',t.topic_id,'name',t.name) ORDER BY t.name)
                     FROM public.problem_topic pt JOIN public.topic t ON t.topic_id=pt.topic_id
                     WHERE pt.problem_id=p.problem_id),'[]'::json) AS topics
@@ -150,41 +172,44 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     } catch(error){next(error);}
   });
 
-  router.post('/problems', authRequired, allowRoles('Organizer','Admin'), async (req,res,next) => {
+  router.post('/problems', authRequired, async (req,res,next) => {
     const input=validateProblem(req.body);
     if(input.errors.length) return res.status(400).json({error:'Validation failed.',details:input.errors});
-    const creatorOrganizerId=req.user.role_category==='Admin'
-      ? Number(req.body.organizer_id)
-      : req.user.organizer_id;
-    if(!Number.isSafeInteger(creatorOrganizerId)||creatorOrganizerId<=0) {
-      return res.status(400).json({error:'Select an active Organizer owner for this problem.'});
+    let creatorOrganizerId=null;
+    if(req.user.role_category==='Organizer') creatorOrganizerId=req.user.organizer_id;
+    if(req.user.role_category==='Admin'&&req.body.organizer_id) creatorOrganizerId=Number(req.body.organizer_id);
+    if(creatorOrganizerId!==null) {
+      if(!Number.isSafeInteger(creatorOrganizerId)||creatorOrganizerId<=0) return res.status(400).json({error:'Select a valid Organizer owner.'});
+      const owner=await pool.query(
+        `SELECT o.organizer_id FROM public.organizer o JOIN public.users u ON u.user_id=o.organizer_id
+         WHERE o.organizer_id=$1 AND u.is_active=TRUE`,[creatorOrganizerId]);
+      if(!owner.rowCount) return res.status(400).json({error:'Selected Organizer owner does not exist or is inactive.'});
     }
-    const owner=await pool.query(
-      `SELECT o.organizer_id FROM public.organizer o
-       JOIN public.users u ON u.user_id=o.organizer_id
-       WHERE o.organizer_id=$1 AND u.is_active=TRUE`,
-      [creatorOrganizerId]
-    );
-    if(!owner.rowCount) return res.status(400).json({error:'Selected Organizer owner does not exist or is inactive.'});
-    const topicsValid=await validateTopicIds(input.topicIds);
+    const topicsValid=input.topicIds.length===0 || await validateTopicIds(input.topicIds);
     if(!topicsValid) return res.status(400).json({error:'One or more selected topics do not exist.'});
     const client=await pool.connect();
     try {
       await client.query('BEGIN');
       const created=await client.query(
         `INSERT INTO public.problem
-          (title,problem_statement,input_format,output_format,constraints,difficulty,created_by,is_active,review_status)
-         VALUES($1,$2,$3,$4,$5,$6,$7,FALSE,'PENDING_REVIEW')
+          (title,problem_statement,input_format,output_format,constraints,difficulty,created_by,
+           is_active,review_status,question_type,question_config,submitted_by_user_id)
+         VALUES($1,$2,$3,$4,$5,$6,$7,FALSE,'PENDING_REVIEW',$8,$9::jsonb,$10)
          RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
-                   difficulty,is_active,review_status,created_at,created_by`,
+                   difficulty,is_active,review_status,created_at,created_by,question_type,question_config`,
         [input.fields.title,input.fields.problem_statement,input.fields.input_format,input.fields.output_format,
-         input.fields.constraints,input.fields.difficulty,creatorOrganizerId]
+         input.fields.constraints,input.fields.difficulty,creatorOrganizerId,input.questionType,
+         JSON.stringify(input.config),req.user.user_id]
       );
-      await addProblemRelations(client,created.rows[0].problem_id,input.topicIds,input.testCases);
+      if(input.questionType==='CODING') await addProblemRelations(client,created.rows[0].problem_id,input.topicIds,input.testCases);
+      else {
+        for(const topicId of input.topicIds) await client.query('INSERT INTO public.problem_topic(problem_id,topic_id) VALUES($1,$2)',[created.rows[0].problem_id,topicId]);
+        await client.query('INSERT INTO public.problem_answer_key(problem_id,answer_key) VALUES($1,$2::jsonb)',[created.rows[0].problem_id,JSON.stringify(input.answerKey)]);
+      }
       await client.query('COMMIT');
-      if(audit) await audit(req.user.user_id,'PROBLEM_SUBMITTED_FOR_REVIEW','problem',created.rows[0].problem_id,{title:created.rows[0].title,organizer_owner_id:creatorOrganizerId,topic_ids:input.topicIds,test_case_count:input.testCases.length});
+      if(audit) await audit(req.user.user_id,'PROBLEM_SUBMITTED_FOR_REVIEW','problem',created.rows[0].problem_id,{title:created.rows[0].title,organizer_owner_id:creatorOrganizerId,submitted_by_user_id:req.user.user_id,question_type:input.questionType,topic_ids:input.topicIds,test_case_count:input.testCases.length});
       await notifyRoleCategories(pool,['Reviewer','Admin'],{notification_type:'PROBLEM_REVIEW',title:'Problem awaiting review',message:'Problem #'+created.rows[0].problem_id+' · '+created.rows[0].title+' was submitted for review.',entity_type:'problem',entity_id:created.rows[0].problem_id});
-      res.status(201).json({problem:created.rows[0],message:'Problem and test cases submitted for Reviewer approval.'});
+      res.status(201).json({problem:created.rows[0],message:'Question submitted for Reviewer approval.'});
     } catch(error){
       await client.query('ROLLBACK');
       if(error.code==='23505') return res.status(409).json({error:'A problem with that title already exists.'});
