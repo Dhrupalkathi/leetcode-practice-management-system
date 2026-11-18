@@ -46,9 +46,9 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
         `SELECT o.organizer_id,u.name AS organizer_name,u.email,org.org_name AS organization_name
          FROM public.organizer o
          JOIN public.users u ON u.user_id=o.organizer_id
-         JOIN public.organization org ON org.organization_id=o.organization_id
+         LEFT JOIN public.organization org ON org.organization_id=o.organization_id
          WHERE u.is_active=TRUE
-         ORDER BY org.org_name,u.name`
+         ORDER BY COALESCE(org.org_name,'Unassigned organization'),u.name`
       );
       res.json({organizers:result.rows});
     } catch(error){next(error);}
