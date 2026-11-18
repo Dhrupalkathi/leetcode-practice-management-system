@@ -181,7 +181,7 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
         );
         if (!owner.rowCount) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Selected Organizer profile is unavailable.' }); }
       }
-      const active = await client.query('SELECT problem_id FROM public.problem WHERE is_active=TRUE AND COALESCE(question_type,'CODING')='CODING' AND problem_id=ANY($1::integer[])', [input.ids]);
+      const active = await client.query(`SELECT problem_id FROM public.problem WHERE is_active=TRUE AND COALESCE(question_type,'CODING')='CODING' AND problem_id=ANY($1::integer[])`, [input.ids]);
       if (active.rowCount!==input.ids.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Every selected problem must exist and be active.' }); }
       const created = await client.query(
         `INSERT INTO public.contest
@@ -233,7 +233,7 @@ module.exports = function createContestRouter({ pool, authRequired, allowRoles }
     const problemId = validId(req.body.problem_id);
     if (!problemId) return res.status(400).json({ error: 'Select a valid problem.' });
     try {
-      const active = await pool.query('SELECT 1 FROM public.problem WHERE problem_id=$1 AND is_active=TRUE AND COALESCE(question_type,'CODING')='CODING'', [problemId]);
+      const active = await pool.query(`SELECT 1 FROM public.problem WHERE problem_id=$1 AND is_active=TRUE AND COALESCE(question_type,'CODING')='CODING'`, [problemId]);
       if (!active.rowCount) return res.status(404).json({ error: 'Active problem not found.' });
       const added = await pool.query('INSERT INTO public.includes(contest_id,problem_id) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING contest_id,problem_id', [req.contest.contest_id,problemId]);
       if (!added.rowCount) return res.status(409).json({ error: 'Problem is already included.' });
