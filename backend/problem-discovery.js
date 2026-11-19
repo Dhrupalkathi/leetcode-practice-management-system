@@ -86,6 +86,8 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
           `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
                   p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,p.question_type,p.question_config,
                   owner.name AS organizer_name,org.org_name AS organizer_organization_name,
+                  CASE WHEN $4::integer IS NOT NULL AND p.submitted_by_user_id=$4::integer
+                       AND p.review_status='CHANGES_REQUESTED' THEN TRUE ELSE FALSE END AS can_author_edit,
                   COALESCE((SELECT json_agg(json_build_object('topic_id',t.topic_id,'name',t.name) ORDER BY t.name)
                     FROM public.problem_topic pt JOIN public.topic t ON t.topic_id=pt.topic_id
                     WHERE pt.problem_id=p.problem_id),'[]'::json) AS topics
@@ -99,7 +101,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
                    AND ($2::text IN ('Reviewer','Admin')
                         OR ($2::text='Organizer' AND p.created_by=$3::integer))
                  ))
-           ORDER BY p.problem_id`,[includeInactive,req.user?.role_category||'',req.user?.organizer_id||null]
+           ORDER BY p.problem_id`,[includeInactive,req.user?.role_category||'',req.user?.organizer_id||null,req.user?.user_id||null]
         );
         res.json({problems:result.rows});
       } catch(error){next(error);}
@@ -115,6 +117,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       const result=await pool.query(
         `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
                 p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,
+                p.question_type,p.question_config,p.submitted_by_user_id,
                 COALESCE((SELECT json_agg(json_build_object('topic_id',t.topic_id,'name',t.name,'description',t.description) ORDER BY t.name)
                   FROM public.problem_topic pt JOIN public.topic t ON t.topic_id=pt.topic_id
                   WHERE pt.problem_id=p.problem_id),'[]'::json) AS topics,
@@ -128,7 +131,8 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
           const problem=result.rows[0];
           const allowed=
             ['Reviewer','Admin'].includes(req.user.role_category) ||
-            (req.user.role_category==='Organizer' && Number(req.user.organizer_id)===Number(problem.created_by));
+            (req.user.role_category==='Organizer' && Number(req.user.organizer_id)===Number(problem.created_by)) ||
+            Number(problem.submitted_by_user_id)===Number(req.user.user_id);
           if(!allowed) return res.status(404).json({error:'Problem not found.'});
           return res.json({problem});
         });
@@ -156,24 +160,34 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     }
   }
 
-  router.get('/problems/:id/test-cases/manage', authRequired, allowRoles('Organizer','Reviewer','Admin'), async (req,res,next) => {
+  router.get('/problems/:id/test-cases/manage', authRequired, async (req,res,next) => {
     const id=Number(req.params.id);
     if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid problem ID.'});
     try {
-      const problem=await pool.query('SELECT problem_id,created_by FROM public.problem WHERE problem_id=$1',[id]);
+      const problem=await pool.query(
+        `SELECT problem_id,created_by,submitted_by_user_id,review_status,question_type,question_config
+         FROM public.problem WHERE problem_id=$1`,[id]);
       if(!problem.rowCount) return res.status(404).json({error:'Problem not found.'});
-      if(req.user.role_category==='Organizer'&&Number(req.user.organizer_id)!==Number(problem.rows[0].created_by)){
-        return res.status(404).json({error:'Problem not found.'});
-      }
-      const [tests,topics,submissions]=await Promise.all([
+      const record=problem.rows[0];
+      const isOwner=req.user.role_category==='Organizer'&&Number(req.user.organizer_id)===Number(record.created_by);
+      const isAuthor=Number(record.submitted_by_user_id)===Number(req.user.user_id)&&record.review_status==='CHANGES_REQUESTED';
+      const canManage=['Reviewer','Admin'].includes(req.user.role_category)||isOwner||isAuthor;
+      if(!canManage) return res.status(404).json({error:'Problem not found.'});
+      const [tests,topics,submissions,attempts,answer]=await Promise.all([
         pool.query('SELECT test_case_id,input_data,expected_output,is_hidden FROM public.test_case WHERE problem_id=$1 ORDER BY test_case_id',[id]),
         pool.query('SELECT topic_id FROM public.problem_topic WHERE problem_id=$1 ORDER BY topic_id',[id]),
-        pool.query('SELECT 1 FROM public.submission WHERE problem_id=$1 LIMIT 1',[id])
+        pool.query('SELECT 1 FROM public.submission WHERE problem_id=$1 LIMIT 1',[id]),
+        pool.query('SELECT 1 FROM public.question_attempt WHERE problem_id=$1 LIMIT 1',[id]),
+        pool.query('SELECT answer_key FROM public.problem_answer_key WHERE problem_id=$1',[id])
       ]);
       res.json({
         test_cases:tests.rows,
         topic_ids:topics.rows.map((row)=>row.topic_id),
-        test_cases_locked:submissions.rowCount>0
+        test_cases_locked:submissions.rowCount>0,
+        question_data_locked:attempts.rowCount>0,
+        question_type:record.question_type,
+        question_config:record.question_config||{},
+        answer_key:answer.rowCount?answer.rows[0].answer_key:null
       });
     } catch(error){next(error);}
   });
@@ -223,7 +237,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     } finally {client.release();}
   });
 
-  router.put('/problems/:id', authRequired, allowRoles('Organizer','Admin'), async (req,res,next) => {
+  router.put('/problems/:id', authRequired, async (req,res,next) => {
     const id=Number(req.params.id);
     if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid problem ID.'});
     const input=validateProblem(req.body);
@@ -233,30 +247,45 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     try {
       await client.query('BEGIN');
       const current=await client.query(
-        `SELECT problem_id,created_by FROM public.problem WHERE problem_id=$1
-         AND ($2::text='Admin' OR created_by=$3::integer) FOR UPDATE`,
-        [id,req.user.role_category,req.user.organizer_id]
+        `SELECT problem_id,created_by,submitted_by_user_id,review_status,question_type,question_config
+         FROM public.problem WHERE problem_id=$1
+           AND ($2::text='Admin'
+             OR ($2::text='Organizer' AND created_by=$3::integer)
+             OR (submitted_by_user_id=$4::integer AND review_status='CHANGES_REQUESTED'))
+         FOR UPDATE`,
+        [id,req.user.role_category,req.user.organizer_id,req.user.user_id]
       );
       if(!current.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'Problem not found.'});}
-      const existingTests=await client.query(
-        'SELECT test_case_id,input_data,expected_output,is_hidden FROM public.test_case WHERE problem_id=$1 ORDER BY test_case_id',[id]
-      );
-      const submissions=await client.query('SELECT 1 FROM public.submission WHERE problem_id=$1 LIMIT 1',[id]);
+      const [existingTests,submissions,questionAttempts,existingAnswer]=await Promise.all([
+        client.query('SELECT test_case_id,input_data,expected_output,is_hidden FROM public.test_case WHERE problem_id=$1 ORDER BY test_case_id',[id]),
+        client.query('SELECT 1 FROM public.submission WHERE problem_id=$1 LIMIT 1',[id]),
+        client.query('SELECT 1 FROM public.question_attempt WHERE problem_id=$1 LIMIT 1',[id]),
+        client.query('SELECT answer_key FROM public.problem_answer_key WHERE problem_id=$1',[id])
+      ]);
       const sameTests=JSON.stringify(existingTests.rows.map((row)=>({input_data:row.input_data,expected_output:row.expected_output,is_hidden:row.is_hidden})))===
         JSON.stringify(input.testCases.map((row)=>({input_data:row.input_data,expected_output:row.expected_output,is_hidden:row.is_hidden})));
       if(submissions.rowCount&&!sameTests){
         await client.query('ROLLBACK');
         return res.status(409).json({error:'Test cases are locked because this problem has submission history. Create a new problem version instead of changing past judging data.'});
       }
+      const currentRecord=current.rows[0];
+      const sameQuestionData=currentRecord.question_type===input.questionType &&
+        JSON.stringify(currentRecord.question_config||{})===JSON.stringify(input.config) &&
+        JSON.stringify(existingAnswer.rows[0]?.answer_key??null)===JSON.stringify(input.answerKey??null);
+      if(questionAttempts.rowCount&&!sameQuestionData){
+        await client.query('ROLLBACK');
+        return res.status(409).json({error:'Question type, options and answer key are locked because learner attempts already exist. Create a new question version to preserve grading history.'});
+      }
       const updated=await client.query(
         `UPDATE public.problem
          SET title=$1,problem_statement=$2,input_format=$3,output_format=$4,
-             constraints=$5,difficulty=$6,is_active=FALSE,review_status='PENDING_REVIEW'
-         WHERE problem_id=$7
+             constraints=$5,difficulty=$6,question_type=$7,question_config=$8::jsonb,
+             is_active=FALSE,review_status='PENDING_REVIEW'
+         WHERE problem_id=$9
          RETURNING problem_id,title,problem_statement,input_format,output_format,constraints,
-                   difficulty,is_active,review_status,created_at,created_by`,
+                   difficulty,is_active,review_status,created_at,created_by,question_type,question_config`,
         [input.fields.title,input.fields.problem_statement,input.fields.input_format,input.fields.output_format,
-         input.fields.constraints,input.fields.difficulty,id]
+         input.fields.constraints,input.fields.difficulty,input.questionType,JSON.stringify(input.config),id]
       );
       await client.query('DELETE FROM public.problem_topic WHERE problem_id=$1',[id]);
       for(const topicId of input.topicIds){
@@ -271,6 +300,16 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
             [id,index+1,item.input_data,item.expected_output,item.is_hidden]
           );
         }
+      }
+      if(input.questionType==='CODING'){
+        await client.query('DELETE FROM public.problem_answer_key WHERE problem_id=$1',[id]);
+      } else {
+        await client.query(
+          `INSERT INTO public.problem_answer_key(problem_id,answer_key)
+           VALUES($1,$2::jsonb)
+           ON CONFLICT(problem_id) DO UPDATE SET answer_key=EXCLUDED.answer_key,updated_at=CURRENT_TIMESTAMP`,
+          [id,JSON.stringify(input.answerKey)]
+        );
       }
       await client.query('COMMIT');
       if(audit) await audit(req.user.user_id,'PROBLEM_UPDATE_SUBMITTED_FOR_REVIEW','problem',id,{title:updated.rows[0].title,topic_ids:input.topicIds,test_case_count:input.testCases.length});
