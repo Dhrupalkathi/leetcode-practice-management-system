@@ -176,7 +176,7 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
                 ),'[]'::json) AS sample_tests
          FROM public.assessment_problem ap
          JOIN public.problem p ON p.problem_id=ap.problem_id
-         WHERE ap.assessment_id=$1 AND p.is_active=TRUE
+         WHERE ap.assessment_id=$1 AND p.is_active=TRUE AND COALESCE(p.question_type,'CODING')='CODING'
          ORDER BY ap.order_no`,
         [req.candidateInvite.assessment_id]
       );
@@ -198,7 +198,7 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
                 ),'[]'::json) AS sample_tests
          FROM public.problem p
          JOIN public.assessment_problem ap ON ap.problem_id=p.problem_id
-         WHERE ap.assessment_id=$1 AND p.problem_id=$2 AND p.is_active=TRUE`,
+         WHERE ap.assessment_id=$1 AND p.problem_id=$2 AND p.is_active=TRUE AND COALESCE(p.question_type,'CODING')='CODING'`,
         [req.candidateInvite.assessment_id,problemId]
       );
       if(!result.rowCount) return res.status(404).json({ error:'Problem is not part of this assessment.' });
@@ -230,7 +230,9 @@ module.exports = function createCandidateAssessmentRouter({ pool }) {
         `SELECT tc.test_case_id,tc.input_data,tc.expected_output
          FROM public.test_case tc
          JOIN public.assessment_problem ap ON ap.problem_id=tc.problem_id
+         JOIN public.problem p ON p.problem_id=tc.problem_id
          WHERE ap.assessment_id=$1 AND tc.problem_id=$2
+           AND p.is_active=TRUE AND COALESCE(p.question_type,'CODING')='CODING'
            AND ($3::boolean=FALSE OR tc.is_hidden=FALSE)
          ORDER BY tc.test_case_id`,
         [invite.assessment_id,problemId,action==='run']
