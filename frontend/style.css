@@ -1216,3 +1216,8 @@ footer { color: #71877d; }
   .candidate-problem-list { grid-template-columns: 1fr; }
   #candidate-source-code { min-height: 260px; }
 }
+
+.candidate-workspace[hidden], .candidate-start-panel[hidden], .candidate-timer-panel[hidden],
+.candidate-finished[hidden], .candidate-code-area[hidden], .submission-record[hidden] {
+  display: none !important;
+}
