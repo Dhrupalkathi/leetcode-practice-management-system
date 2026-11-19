@@ -133,6 +133,7 @@ const WORKSPACE_VIEWS = {
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'problems', label: 'Problem library' },
     { id: 'contests', label: 'Contests' },
+    { id: 'mentoring', label: 'Mentor feedback' },
     { id: 'support', label: 'Support' }
   ],
   Organizer: [
@@ -649,7 +650,7 @@ function render() {
 
     const canManage = currentUser?.role_category === 'Admin' ||
       (currentUser?.role_category === 'Organizer' &&
-       Number(currentUser.organizer_id) === Number(problem.created_by));
+       Number(currentUser.organizer_id) === Number(problem.created_by)) || Boolean(problem.can_author_edit);
     row.querySelector('.edit-button').hidden = !canManage;
     row.querySelector('.retire-button').hidden = !canManage || !problem.is_active;
 
@@ -1378,10 +1379,23 @@ async function openForm(problem = null) {
       loadProblemOrganizers(problem?.created_by ?? null, Boolean(problem))
     ]);
     renderProblemTopicOptions(problem?.topics?.map((topic) => topic.topic_id) || []);
-    const managed = problem && (problem.question_type || 'CODING') === 'CODING'
+    const managed = problem
       ? await api('/api/problems/' + problem.problem_id + '/test-cases/manage')
-      : { test_cases: [{ input_data: '', expected_output: '', is_hidden: false }], topic_ids: [], test_cases_locked: false };
+      : { test_cases: [], topic_ids: [], test_cases_locked: false, question_data_locked: false, answer_key: null, question_config: {} };
     renderProblemTopicOptions(managed.topic_ids || []);
+    const answerKey = managed.answer_key;
+    const questionType = $('#question-type').value;
+    $('#question-answer').value = questionType === 'SQL'
+      ? (answerKey?.expected_result || '')
+      : questionType === 'TRUE_FALSE'
+        ? (answerKey === true ? 'true' : answerKey === false ? 'false' : '')
+        : Array.isArray(answerKey) ? answerKey.join('\\n') : (typeof answerKey === 'string' ? answerKey : '');
+    $('#question-options').value = (managed.question_config?.options || problem?.question_config?.options || []).join('\\n');
+    const questionLocked = Boolean(managed.question_data_locked);
+    $('#question-type').disabled = questionLocked;
+    $('#question-options').disabled = questionLocked;
+    $('#question-answer').disabled = questionLocked;
+    if (questionLocked) $('#question-type-help').textContent += ' The answer key and question type are locked because attempts already exist.';
     $('#problem-test-case-list').replaceChildren();
     const locked = Boolean(managed.test_cases_locked);
     $('#problem-test-cases-locked').hidden = !locked;
@@ -2208,7 +2222,7 @@ $('#problem-form').addEventListener('submit', async (event) => {
     });
     $('#form-panel').hidden = true;
     notify(result.message || (id ? 'Changes submitted for Reviewer approval.' : 'Problem submitted for Reviewer approval.'), 'success');
-    if (result.problem?.review_status === 'PENDING_REVIEW' && ['Admin','Reviewer','Organizer'].includes(currentUser?.role_category)) $('#show-inactive').checked = true;
+    if (result.problem?.review_status === 'PENDING_REVIEW') $('#show-inactive').checked = true;
     await loadProblems();
   } catch (error) {
     $('#form-error').textContent = error.message;
