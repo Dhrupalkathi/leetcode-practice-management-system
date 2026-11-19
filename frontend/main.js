@@ -159,6 +159,24 @@ const WORKSPACE_VIEWS = {
 };
 let activeWorkspaceView = null;
 
+const WORKSPACE_COPY = {
+  dashboard: ['YOUR PRACTICE, AT A GLANCE', 'A clear view of your progress, consistency and recent work.'],
+  problems: ['THE QUESTION CATALOGUE', 'Find a challenge, explore its requirements, and work through it at your own pace.'],
+  contests: ['COMPETITIVE PROGRAMMING', 'Manage scheduled contests, participation, problem sets and standings.'],
+  assessments: ['ASSESSMENT OPERATIONS', 'Build focused coding assessments and manage candidate invitations and reports.'],
+  support: ['HELP DESK', 'Track requests, follow responses and keep support work moving.'],
+  review: ['CONTENT GOVERNANCE', 'Review submitted questions and keep the public catalogue reliable.'],
+  mentoring: ['LEARNER DEVELOPMENT', 'Give useful, contextual feedback and follow learner progress.'],
+  judging: ['RESULTS GOVERNANCE', 'Review contest outcomes and record transparent decisions.'],
+  'admin-overview': ['SYSTEM INTELLIGENCE', 'Monitor platform activity, adoption and assessment operations.'],
+  'admin-users': ['IDENTITY & ACCESS', 'Manage accounts, role assignments and administrative history.']
+};
+const WORKSPACE_ICONS = {
+  dashboard: '▦', problems: '⌕', contests: '◉', assessments: '◈',
+  support: '↗', review: '✓', mentoring: '✳', judging: '⚖',
+  'admin-overview': '▤', 'admin-users': '♙'
+};
+
 function setWorkspaceView(viewId) {
   const navigation = $('#workspace-navigation');
   const available = [...navigation.querySelectorAll('[data-view-link]')].map(button => button.dataset.viewLink);
@@ -175,6 +193,11 @@ function setWorkspaceView(viewId) {
   });
   const activeButton = navigation.querySelector('[data-view-link="' + viewId + '"]');
   $('#workspace-page-heading').textContent = activeButton?.textContent || 'Workspace';
+  const copy = WORKSPACE_COPY[viewId] || ['WORKSPACE', 'Your tools and activity in one place.'];
+  $('#workspace-hero-kicker').textContent = copy[0];
+  $('#workspace-hero-description').textContent = copy[1];
+  $('#workspace-hero-role').textContent = (currentUser?.role_name || 'MEMBER').toUpperCase();
+  $('#workspace-hero-index').textContent = String(Math.max(1, available.indexOf(viewId) + 1)).padStart(2, '0');
 }
 
 function renderWorkspaceNavigation() {
@@ -182,22 +205,26 @@ function renderWorkspaceNavigation() {
   navigation.replaceChildren();
   if (!currentUser) {
     navigation.hidden = true;
+    document.body.classList.remove('has-workspace-rail');
+    $('#workspace-hero').hidden = true;
     document.querySelectorAll('[data-view]').forEach(section => {
       section.hidden = section.dataset.view !== 'problems';
     });
-    $('#workspace-page-heading').hidden = true;
     return;
   }
   const views = WORKSPACE_VIEWS[currentUser.role_category] || [];
   navigation.hidden = views.length === 0;
-  $('#workspace-page-heading').hidden = views.length === 0;
-  for (const view of views) {
+  $('#workspace-hero').hidden = views.length === 0;
+  document.body.classList.toggle('has-workspace-rail', views.length > 0);
+  views.forEach((view, index) => {
     const button = element('button', 'workspace-nav-link', view.label);
     button.type = 'button';
     button.dataset.viewLink = view.id;
+    button.dataset.index = String(index + 1).padStart(2, '0');
+    button.dataset.icon = WORKSPACE_ICONS[view.id] || '·';
     button.addEventListener('click', () => setWorkspaceView(view.id));
     navigation.append(button);
-  }
+  });
   const preferred = views.some(view => view.id === activeWorkspaceView)
     ? activeWorkspaceView
     : (views[0]?.id || null);
