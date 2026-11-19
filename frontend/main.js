@@ -1352,6 +1352,9 @@ async function openForm(problem = null) {
   $('#problem-form').reset();
   $('#form-error').textContent = '';
   $('#save-button').disabled = false;
+  $('#question-type').disabled = false;
+  $('#question-options').disabled = false;
+  $('#question-answer').disabled = false;
   $('#problem-id').value = problem?.problem_id ?? '';
   $('#form-title').textContent = problem ? 'Edit question #' + problem.problem_id : 'Create a question';
   $('#title').value = problem?.title ?? '';
@@ -1510,8 +1513,10 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
     const reviewList = $('#problem-review-history-list');
     reviewList.replaceChildren();
     const canSeeReviewHistory = currentUser?.role_category === 'Admin' ||
+      currentUser?.role_category === 'Reviewer' ||
       (currentUser?.role_category === 'Organizer' &&
-       Number(currentUser.organizer_id) === Number(problem.created_by));
+       Number(currentUser.organizer_id) === Number(problem.created_by)) ||
+      Number(currentUser?.user_id) === Number(problem.submitted_by_user_id);
     reviewSection.hidden = !canSeeReviewHistory;
     if (canSeeReviewHistory) {
       try {
