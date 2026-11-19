@@ -980,3 +980,14 @@ footer { color: #71877d; }
   margin: 2px 0 10px;
   resize: vertical;
 }
+
+.review-answer-key {
+  margin: 7px 0;
+  padding: 9px 11px;
+  border-left: 2px solid var(--ember);
+  border-radius: 0 7px 7px 0;
+  background: rgba(72, 49, 37, .2);
+  color: #d8c1ad;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
