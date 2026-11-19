@@ -1236,7 +1236,7 @@ async function loadProblemOrganizers(selectedId = null, editing = false) {
   select.disabled = editing;
   if (help) {
     help.textContent = editing
-      ? 'Ownership is preserved while editing. To change ownership, use Admin user and organization management.'
+      ? 'Ownership is preserved while editing; this editor does not transfer problem ownership.'
       : organizers.length
         ? 'Optional. Assign this question to an active Organizer; otherwise it remains a community-submitted question.'
         : 'No active Organizer profiles are available. You can still submit this question without assigning an owner.';
