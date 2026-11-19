@@ -638,7 +638,7 @@ function render() {
       problem.problem_statement || 'Open this problem to view its full details.';
     row.querySelector('.problem-meta').textContent =
       'Created ' + new Date(problem.created_at).toLocaleDateString() +
-      (problem.organizer_name ? ' · Organizer: ' + problem.organizer_name : ' · Community submission');
+      (problem.organizer_name ? ' · Organizer: ' + problem.organizer_name + (problem.organizer_organization_name ? ' · ' + problem.organizer_organization_name : '') : ' · Community submission');
     row.querySelector('.retired-tag').hidden = problem.is_active;
     row.querySelector('.retired-tag').textContent = problem.review_status === 'PENDING_REVIEW'
       ? 'Pending review'
@@ -1131,8 +1131,19 @@ async function loadProblemOrganizers(selectedId = null, editing = false) {
   }
   field.hidden = false;
   select.replaceChildren();
-  const result = await api('/api/problem-organizers');
-  const organizers = result.organizers || [];
+  let organizers = [];
+  try {
+    const result = await api('/api/problem-organizers');
+    organizers = result.organizers || [];
+  } catch (error) {
+    const fallback = document.createElement('option');
+    fallback.value = '';
+    fallback.textContent = 'No Organizer assigned';
+    select.append(fallback);
+    select.disabled = false;
+    if (help) help.textContent = 'Organizer list could not be loaded. You can still submit this question without assigning an owner. ' + error.message;
+    return;
+  }
   const placeholder = document.createElement('option');
   placeholder.value = '';
   placeholder.textContent = 'No Organizer assigned';
@@ -1165,19 +1176,31 @@ async function loadProblemOrganizers(selectedId = null, editing = false) {
 }
 
 async function loadTopics() {
-  const payload = await api('/api/topics');
-  topics = payload.topics || [];
   const select = $('#topic-filter');
   select.replaceChildren();
   const all = document.createElement('option');
   all.value = '';
   all.textContent = 'All topics';
   select.append(all);
-  for (const topic of topics) {
-    const option = document.createElement('option');
-    option.value = topic.topic_id;
-    option.textContent = topic.name;
-    select.append(option);
+  try {
+    const payload = await api('/api/topics');
+    topics = payload.topics || [];
+    for (const topic of topics) {
+      const option = document.createElement('option');
+      option.value = topic.topic_id;
+      option.textContent = topic.name;
+      select.append(option);
+    }
+    return true;
+  } catch (error) {
+    topics = [];
+    const unavailable = document.createElement('option');
+    unavailable.value = '';
+    unavailable.textContent = 'Topics unavailable';
+    unavailable.disabled = true;
+    select.append(unavailable);
+    console.warn('Topic catalogue could not be loaded:', error.message);
+    return false;
   }
 }
 
@@ -1340,7 +1363,6 @@ async function openForm(problem = null) {
   $('#input-format').value = problem?.input_format ?? '';
   $('#output-format').value = problem?.output_format ?? '';
   $('#constraints').value = problem?.constraints ?? '';
-  const adminCreating = currentUser?.role_category === 'Admin';
   $('#form-panel').hidden = false;
   $('#problem-test-case-list').replaceChildren(element('p', 'muted', 'Loading test-case editor…'));
   $('#problem-test-cases-locked').hidden = true;
