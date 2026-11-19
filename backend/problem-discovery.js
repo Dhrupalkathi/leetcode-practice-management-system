@@ -131,18 +131,22 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
          FROM public.problem p WHERE p.problem_id=$1`,[id]
       );
       if(!result.rowCount) return res.status(404).json({error:'Problem not found.'});
-      if(!result.rows[0].is_active) {
-        return authRequired(req,res,()=>{
-          const problem=result.rows[0];
+      const respond=()=>{
+        const problem=result.rows[0];
+        const isAuthor=Number(req.session?.userId)===Number(problem.submitted_by_user_id);
+        if(!problem.is_active){
           const allowed=
             ['Reviewer','Admin'].includes(req.user.role_category) ||
             (req.user.role_category==='Organizer' && Number(req.user.organizer_id)===Number(problem.created_by)) ||
-            Number(problem.submitted_by_user_id)===Number(req.user.user_id);
+            isAuthor;
           if(!allowed) return res.status(404).json({error:'Problem not found.'});
-          return res.json({problem});
-        });
-      }
-      res.json({problem:result.rows[0]});
+        }
+        problem.is_author=isAuthor;
+        delete problem.submitted_by_user_id;
+        return res.json({problem});
+      };
+      if(!result.rows[0].is_active) return authRequired(req,res,respond);
+      return respond();
     } catch(error){next(error);}
   });
 
