@@ -906,3 +906,59 @@ footer { color: #71877d; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+
+/* Compact contribution timeline: every day is visible without a dead chart area. */
+.daily-activity {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  grid-auto-flow: row;
+  align-items: start;
+  gap: 9px 8px;
+  min-height: 0;
+  height: auto;
+  margin-top: 18px;
+  padding: 4px 2px 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.activity-day {
+  display: grid;
+  height: auto;
+  min-width: 0;
+  justify-items: center;
+  gap: 5px;
+  overflow: visible;
+  color: #83978e;
+  font-size: 9px;
+}
+.activity-cell {
+  display: block;
+  width: min(100%, 30px);
+  aspect-ratio: 1;
+  border: 1px solid #304640;
+  border-radius: 5px;
+  background: #182724;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.activity-day[data-level="1"] .activity-cell { border-color: #386c59; background: #28513f; }
+.activity-day[data-level="2"] .activity-cell { border-color: #4d8c70; background: #39765a; }
+.activity-day[data-level="3"] .activity-cell { border-color: #68ad8a; background: #579878; }
+.activity-day[data-level="4"] .activity-cell { border-color: #9bd7b6; background: #80c5a0; }
+.activity-day:hover .activity-cell { transform: translateY(-2px); border-color: var(--ember); }
+.activity-day-label { min-height: 11px; white-space: nowrap; font-size: 8px; }
+.activity-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed #38514a;
+  border-radius: 9px;
+  color: #8fa79a;
+  background: rgba(11, 24, 21, .6);
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .daily-activity { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px 5px; }
+  .activity-cell { width: min(100%, 25px); }
+}
