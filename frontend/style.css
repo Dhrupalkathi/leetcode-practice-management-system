@@ -991,3 +991,19 @@ footer { color: #71877d; }
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.question-answer-history { display: grid; gap: 8px; margin-top: 14px; }
+.question-answer-attempt {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(82,117,107,.25);
+  border-radius: 9px;
+  background: rgba(10,20,20,.55);
+}
+.question-answer-status-tag { color: #a7d8c5; font-size: 11px; }
+.question-answer-feedback { grid-column: 1 / -1; margin: 0; color: #a7b8af; font-size: 12px; }
+@media (max-width: 560px) {
+  .question-answer-attempt { grid-template-columns: 1fr; }
+}
