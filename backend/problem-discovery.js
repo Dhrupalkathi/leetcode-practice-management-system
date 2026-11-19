@@ -133,7 +133,7 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       if(!result.rowCount) return res.status(404).json({error:'Problem not found.'});
       const respond=()=>{
         const problem=result.rows[0];
-        const isAuthor=Number(req.session?.userId)===Number(problem.submitted_by_user_id);
+        const isAuthor=Boolean(req.session?.userId)&&Number(req.session.userId)===Number(problem.submitted_by_user_id);
         if(!problem.is_active){
           const allowed=
             ['Reviewer','Admin'].includes(req.user.role_category) ||
