@@ -1034,3 +1034,12 @@ These checks were added after the role-workspace redesign and the cross-feature 
 ### R-16 — Backup and rollback readiness
 - **What:** Before merging the redesign into production, verify the GitHub pre-redesign backup branch and create a Neon database branch/snapshot from the current production branch.
 - **Expected:** Application code and production data each have independent recovery points; no production migration or destructive operation begins before both are confirmed.
+
+
+### R-17 — Question type cannot invalidate an assigned contest or assessment
+- **What:** Attempt to change a coding question to MCQ/SQL after it has been assigned to a contest or assessment.
+- **Expected:** The server rejects the type change and preserves the existing assignment. A separate question must be created for a different format.
+
+### R-18 — Code execution endpoints reject non-coding questions
+- **What:** Attempt direct learner and candidate code-submission API requests for MCQ, true/false, short-answer and SQL questions.
+- **Expected:** Both execution APIs reject non-coding questions before creating a submission or queueing a worker job.
