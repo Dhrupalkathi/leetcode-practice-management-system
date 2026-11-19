@@ -261,11 +261,15 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
         [id,req.user.role_category,req.user.organizer_id,req.user.user_id]
       );
       if(!current.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'Problem not found.'});}
-      const [existingTests,submissions,questionAttempts,existingAnswer]=await Promise.all([
+      const [existingTests,submissions,questionAttempts,existingAnswer,assignments]=await Promise.all([
         client.query('SELECT test_case_id,input_data,expected_output,is_hidden FROM public.test_case WHERE problem_id=$1 ORDER BY test_case_id',[id]),
         client.query('SELECT 1 FROM public.submission WHERE problem_id=$1 LIMIT 1',[id]),
         client.query('SELECT 1 FROM public.question_attempt WHERE problem_id=$1 LIMIT 1',[id]),
-        client.query('SELECT answer_key FROM public.problem_answer_key WHERE problem_id=$1',[id])
+        client.query('SELECT answer_key FROM public.problem_answer_key WHERE problem_id=$1',[id]),
+        client.query(
+          `SELECT 1 FROM public.includes WHERE problem_id=$1
+           UNION ALL SELECT 1 FROM public.assessment_problem WHERE problem_id=$1
+           LIMIT 1`,[id])
       ]);
       const sameTests=JSON.stringify(existingTests.rows.map((row)=>({input_data:row.input_data,expected_output:row.expected_output,is_hidden:row.is_hidden})))===
         JSON.stringify(input.testCases.map((row)=>({input_data:row.input_data,expected_output:row.expected_output,is_hidden:row.is_hidden})));
@@ -274,6 +278,10 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
         return res.status(409).json({error:'Test cases are locked because this problem has submission history. Create a new problem version instead of changing past judging data.'});
       }
       const currentRecord=current.rows[0];
+      if(assignments.rowCount&&currentRecord.question_type!==input.questionType){
+        await client.query('ROLLBACK');
+        return res.status(409).json({error:'Question type cannot be changed while this problem is assigned to a contest or assessment. Create a separate question for the other format.'});
+      }
       const sameQuestionData=currentRecord.question_type===input.questionType &&
         JSON.stringify(currentRecord.question_config||{})===JSON.stringify(input.config) &&
         JSON.stringify(existingAnswer.rows[0]?.answer_key??null)===JSON.stringify(input.answerKey??null);
