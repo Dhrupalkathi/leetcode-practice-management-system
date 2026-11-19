@@ -638,7 +638,7 @@ function render() {
       problem.problem_statement || 'Open this problem to view its full details.';
     row.querySelector('.problem-meta').textContent =
       'Created ' + new Date(problem.created_at).toLocaleDateString() +
-      ' · Organizer ID ' + problem.created_by;
+      (problem.organizer_name ? ' · Organizer: ' + problem.organizer_name : ' · Community submission');
     row.querySelector('.retired-tag').hidden = problem.is_active;
     row.querySelector('.retired-tag').textContent = problem.review_status === 'PENDING_REVIEW'
       ? 'Pending review'
@@ -1121,6 +1121,49 @@ async function registerForActiveContest() {
   finally { button.disabled = false; }
 }
 
+async function loadProblemOrganizers(selectedId = null, editing = false) {
+  const field = $('#problem-organizer-field');
+  const select = $('#problem-organizer');
+  const help = $('#problem-organizer-help');
+  if (currentUser?.role_category !== 'Admin') {
+    field.hidden = true;
+    return;
+  }
+  field.hidden = false;
+  select.replaceChildren();
+  const result = await api('/api/problem-organizers');
+  const organizers = result.organizers || [];
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'No Organizer assigned';
+  select.append(placeholder);
+  for (const organizer of organizers) {
+    const option = document.createElement('option');
+    option.value = organizer.organizer_id;
+    option.textContent = organizer.organizer_name + ' · ' + (organizer.organization_name || 'Unassigned organization');
+    select.append(option);
+  }
+  if (selectedId != null) {
+    const match = organizers.find(item => Number(item.organizer_id) === Number(selectedId));
+    if (match) select.value = String(selectedId);
+    else {
+      const unavailable = document.createElement('option');
+      unavailable.value = String(selectedId);
+      unavailable.textContent = 'Existing Organizer owner #' + selectedId + ' (not currently active)';
+      select.append(unavailable);
+      select.value = String(selectedId);
+    }
+  }
+  select.disabled = editing;
+  if (help) {
+    help.textContent = editing
+      ? 'Ownership is preserved while editing. To change ownership, use Admin user and organization management.'
+      : organizers.length
+        ? 'Optional. Assign this question to an active Organizer; otherwise it remains a community-submitted question.'
+        : 'No active Organizer profiles are available. You can still submit this question without assigning an owner.';
+  }
+}
+
 async function loadTopics() {
   const payload = await api('/api/topics');
   topics = payload.topics || [];
@@ -1297,7 +1340,7 @@ async function openForm(problem = null) {
   $('#input-format').value = problem?.input_format ?? '';
   $('#output-format').value = problem?.output_format ?? '';
   $('#constraints').value = problem?.constraints ?? '';
-  const adminCreating = false;
+  const adminCreating = currentUser?.role_category === 'Admin';
   $('#form-panel').hidden = false;
   $('#problem-test-case-list').replaceChildren(element('p', 'muted', 'Loading test-case editor…'));
   $('#problem-test-cases-locked').hidden = true;
@@ -1308,7 +1351,10 @@ async function openForm(problem = null) {
   try {
     // Refresh the catalogue when the editor opens so it never depends on
     // whether the initial page-load request completed before the user clicked.
-    await loadTopics();
+    await Promise.all([
+      loadTopics(),
+      loadProblemOrganizers(problem?.created_by ?? null, Boolean(problem))
+    ]);
     renderProblemTopicOptions(problem?.topics?.map((topic) => topic.topic_id) || []);
     const managed = problem && (problem.question_type || 'CODING') === 'CODING'
       ? await api('/api/problems/' + problem.problem_id + '/test-cases/manage')
@@ -2128,6 +2174,9 @@ $('#problem-form').addEventListener('submit', async (event) => {
     topic_ids: collectProblemTopicIds(),
     test_cases: $('#question-type').value === 'CODING' ? collectProblemTestCases() : []
   };
+  if (currentUser?.role_category === 'Admin' && !id && $('#problem-organizer').value) {
+    body.organizer_id = Number($('#problem-organizer').value);
+  }
   $('#save-button').disabled = true;
   $('#form-error').textContent = '';
   try {
