@@ -29,10 +29,11 @@ function validateProblem(body) {
     if(typeof item.is_hidden!=='boolean'){errors.push('Each test case must specify whether it is hidden.');break;}
     if(item.input_data.length>50000||item.expected_output.length>50000){errors.push('Each test case input/output must be 50000 characters or fewer.');break;}
   }
-  const config=body.question_config&&typeof body.question_config==='object'&&!Array.isArray(body.question_config)?body.question_config:{};
+  const rawConfig=body.question_config&&typeof body.question_config==='object'&&!Array.isArray(body.question_config)?body.question_config:{};
+  const config={};
   let answerKey=body.answer_key;
   if(['MCQ_SINGLE','MCQ_MULTI'].includes(questionType)){
-    const options=Array.isArray(config.options)?config.options.map(v=>String(v).trim()).filter(Boolean):[];
+    const options=Array.isArray(rawConfig.options)?rawConfig.options.map(v=>String(v).trim()).filter(Boolean):[];
     if(options.length<2||options.length>10) errors.push('Add between 2 and 10 answer options.');
     if(questionType==='MCQ_SINGLE'&&typeof answerKey!=='string') errors.push('Choose the correct option for this single-choice question.');
     if(questionType==='MCQ_MULTI'&&(!Array.isArray(answerKey)||!answerKey.length)) errors.push('Choose at least one correct option.');
@@ -45,12 +46,11 @@ function validateProblem(body) {
     if(typeof answerKey!=='string'||!answerKey.trim()) errors.push('Provide the expected answer for automatic checking.');
     else answerKey=answerKey.trim();
   } else if(questionType==='SQL') {
-    if(typeof config.expected_result!=='string'||!config.expected_result.trim()) errors.push('Provide the expected SQL result or explain the manual marking criteria.');
-    answerKey={expected_result:String(config.expected_result||'').trim()};
+    if(typeof rawConfig.expected_result!=='string'||!rawConfig.expected_result.trim()) errors.push('Provide the expected SQL result or explain the manual marking criteria.');
+    answerKey={expected_result:String(rawConfig.expected_result||'').trim()};
   }
   if(questionType==='CODING') answerKey=null;
-  // question_config is public; keep expected SQL results only in the private answer-key table.
-  if(questionType==='SQL') delete config.expected_result;
+  // Only learner-visible options are stored in the public config. All answer keys stay private.
   return {errors,fields,topicIds,testCases,questionType,config,answerKey};
 }
 
@@ -84,7 +84,9 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       try {
         const result=await pool.query(
           `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
-                  p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,p.question_type,p.question_config,
+                  p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,p.question_type,CASE WHEN p.question_type IN ('MCQ_SINGLE','MCQ_MULTI')
+                       THEN jsonb_build_object('options',COALESCE(p.question_config->'options','[]'::jsonb))
+                       ELSE '{}'::jsonb END AS question_config,
                   owner.name AS organizer_name,org.org_name AS organizer_organization_name,
                   CASE WHEN $4::integer IS NOT NULL AND p.submitted_by_user_id=$4::integer
                        AND p.review_status='CHANGES_REQUESTED' THEN TRUE ELSE FALSE END AS can_author_edit,
