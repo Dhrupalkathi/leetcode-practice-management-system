@@ -85,10 +85,14 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
         const result=await pool.query(
           `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
                   p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,p.question_type,p.question_config,
+                  owner.name AS organizer_name,org.org_name AS organizer_organization_name,
                   COALESCE((SELECT json_agg(json_build_object('topic_id',t.topic_id,'name',t.name) ORDER BY t.name)
                     FROM public.problem_topic pt JOIN public.topic t ON t.topic_id=pt.topic_id
                     WHERE pt.problem_id=p.problem_id),'[]'::json) AS topics
            FROM public.problem p
+           LEFT JOIN public.users owner ON owner.user_id=p.created_by
+           LEFT JOIN public.organizer o ON o.organizer_id=p.created_by
+           LEFT JOIN public.organization org ON org.organization_id=o.organization_id
            WHERE p.is_active=TRUE
               OR ($1::boolean AND (
                    p.review_status IN ('RETIRED','PENDING_REVIEW','CHANGES_REQUESTED','REJECTED')
