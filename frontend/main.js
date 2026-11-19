@@ -1392,8 +1392,8 @@ async function openForm(problem = null) {
       ? (answerKey?.expected_result || '')
       : questionType === 'TRUE_FALSE'
         ? (answerKey === true ? 'true' : answerKey === false ? 'false' : '')
-        : Array.isArray(answerKey) ? answerKey.join('\\n') : (typeof answerKey === 'string' ? answerKey : '');
-    $('#question-options').value = (managed.question_config?.options || problem?.question_config?.options || []).join('\\n');
+        : Array.isArray(answerKey) ? answerKey.join('\n') : (typeof answerKey === 'string' ? answerKey : '');
+    $('#question-options').value = (managed.question_config?.options || problem?.question_config?.options || []).join('\n');
     const questionLocked = Boolean(managed.question_data_locked);
     $('#question-type').disabled = questionLocked;
     $('#question-options').disabled = questionLocked;
