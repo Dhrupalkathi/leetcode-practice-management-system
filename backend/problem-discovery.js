@@ -99,7 +99,8 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
               OR ($1::boolean AND (
                    p.review_status IN ('RETIRED','PENDING_REVIEW','CHANGES_REQUESTED','REJECTED')
                    AND ($2::text IN ('Reviewer','Admin')
-                        OR ($2::text='Organizer' AND p.created_by=$3::integer))
+                        OR ($2::text='Organizer' AND p.created_by=$3::integer)
+                        OR p.submitted_by_user_id=$4::integer)
                  ))
            ORDER BY p.problem_id`,[includeInactive,req.user?.role_category||'',req.user?.organizer_id||null,req.user?.user_id||null]
         );
