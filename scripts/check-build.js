@@ -72,9 +72,9 @@ for (const contract of pageContracts) {
 
   const html = fs.readFileSync(htmlPath, 'utf8');
   const source = fs.readFileSync(jsPath, 'utf8');
-  const ids = [...html.matchAll(/\\bid="([^"]+)"/g)].map((match) => match[1]);
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
   const duplicates = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
-  const selectors = [...source.matchAll(/\\$\\(['"]#([a-zA-Z0-9_-]+)['"]\\)/g)].map((match) => match[1]);
+  const selectors = [...source.matchAll(/\$\(['"]#([a-zA-Z0-9_-]+)['"]\)/g)].map((match) => match[1]);
   const missing = [...new Set(selectors.filter((id) => !ids.includes(id) && !contract.dynamicIds.includes(id)))];
 
   if (duplicates.length || missing.length) {
@@ -87,12 +87,12 @@ for (const contract of pageContracts) {
   }
 
   const localAssets = [
-    ...[...html.matchAll(/<script\\b[^>]*\\bsrc="([^"]+)"/g)].map((match) => match[1]),
-    ...[...html.matchAll(/<link\\b[^>]*\\bhref="([^"]+\\.css(?:\\?[^"]*)?)"/g)].map((match) => match[1])
+    ...[...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)].map((match) => match[1]),
+    ...[...html.matchAll(/<link\b[^>]*\bhref="([^"]+\.css(?:\?[^"]*)?)"/g)].map((match) => match[1])
   ].filter((asset) => asset.startsWith('/'));
 
   for (const asset of localAssets) {
-    const relative = asset.replace(/^\\//, '').split('?')[0];
+    const relative = asset.replace(/^\//, '').split('?')[0];
     if (!fs.existsSync(path.join(root, 'frontend', relative))) {
       contractFailed = true;
       console.error(`✗ Missing local asset: ${contract.html} -> ${asset}`);
