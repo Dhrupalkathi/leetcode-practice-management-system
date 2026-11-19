@@ -39,11 +39,12 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
       const result = await pool.query(
         `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
                 p.constraints,p.difficulty,p.review_status,p.created_at,p.created_by,
-                creator.name AS creator_name,
+                COALESCE(submitter.name,creator.name) AS creator_name,
                 (SELECT COUNT(*)::integer FROM public.test_case tc WHERE tc.problem_id=p.problem_id) AS test_case_count
          FROM public.problem p
          LEFT JOIN public.organizer o ON o.organizer_id=p.created_by
          LEFT JOIN public.users creator ON creator.user_id=o.organizer_id
+         LEFT JOIN public.users submitter ON submitter.user_id=p.submitted_by_user_id
          WHERE p.review_status IN ('PENDING_REVIEW','CHANGES_REQUESTED')
          ORDER BY p.created_at,p.problem_id`
       );
@@ -51,15 +52,16 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
     } catch(error) { next(error); }
   });
 
-  router.get('/problems/:id/reviews', authRequired, allowRoles('Reviewer','Organizer','Admin'), async (req,res,next) => {
+  router.get('/problems/:id/reviews', authRequired, async (req,res,next) => {
     const id=positiveId(req.params.id);
     if(!id) return res.status(400).json({error:'Invalid problem ID.'});
     try {
-      const problem=await pool.query('SELECT created_by FROM public.problem WHERE problem_id=$1',[id]);
+      const problem=await pool.query('SELECT created_by,submitted_by_user_id FROM public.problem WHERE problem_id=$1',[id]);
       if(!problem.rowCount) return res.status(404).json({error:'Problem not found.'});
-      if(req.user.role_category==='Organizer' && Number(req.user.organizer_id)!==Number(problem.rows[0].created_by)) {
-        return res.status(404).json({error:'Problem not found.'});
-      }
+      const isReviewer=['Reviewer','Admin'].includes(req.user.role_category);
+      const isOrganizer=req.user.role_category==='Organizer' && Number(req.user.organizer_id)===Number(problem.rows[0].created_by);
+      const isAuthor=Number(req.user.user_id)===Number(problem.rows[0].submitted_by_user_id);
+      if(!isReviewer&&!isOrganizer&&!isAuthor) return res.status(404).json({error:'Problem not found.'});
       const result=await pool.query(
         `SELECT pr.review_id,pr.problem_id,pr.reviewer_id,u.name AS reviewer_name,
                 pr.decision,pr.comments,pr.reviewed_at
@@ -80,7 +82,7 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
     const client=await pool.connect();
     try {
       await client.query('BEGIN');
-      const problem=await client.query('SELECT problem_id,created_by,review_status,title FROM public.problem WHERE problem_id=$1 FOR UPDATE',[id]);
+      const problem=await client.query('SELECT problem_id,created_by,submitted_by_user_id,review_status,title FROM public.problem WHERE problem_id=$1 FOR UPDATE',[id]);
       if(!problem.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'Problem not found.'});}
       if(!['PENDING_REVIEW','CHANGES_REQUESTED'].includes(problem.rows[0].review_status)){
         await client.query('ROLLBACK');return res.status(409).json({error:'Only problems awaiting review can receive a new decision.'});
@@ -102,7 +104,13 @@ module.exports = function createGovernanceRouter({ pool, authRequired, allowRole
         [req.user.user_id,String(id),JSON.stringify({decision,review_id:review.rows[0].review_id})]
       );
       await client.query('COMMIT');
-      await notifyUser(pool,problem.rows[0].created_by,{notification_type:'PROBLEM_REVIEW_RESULT',title:'Problem review decision',message:'Problem #'+id+' · '+problem.rows[0].title+' was '+decision.toLowerCase().replaceAll('_',' ')+'.',entity_type:'problem',entity_id:id});
+      const notifyIds=[...new Set([problem.rows[0].submitted_by_user_id,problem.rows[0].created_by].filter(Boolean).map(Number))];
+      await Promise.all(notifyIds.map(userId=>notifyUser(pool,userId,{
+        notification_type:'PROBLEM_REVIEW_RESULT',
+        title:'Problem review decision',
+        message:'Problem #'+id+' · '+problem.rows[0].title+' was '+decision.toLowerCase().replaceAll('_',' ')+'.',
+        entity_type:'problem',entity_id:id
+      })));
       res.json({problem:updated.rows[0],review:review.rows[0]});
     } catch(error){
       await client.query('ROLLBACK');next(error);

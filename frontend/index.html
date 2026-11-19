@@ -6,7 +6,7 @@
   <meta name="description" content="Team 24 programming practice platform">
   <title>Practice Platform | Problem Library</title>
   <link rel="stylesheet" href="/style.css">
-  <script src="/main.js?v=assessment-flow-audit-1" defer></script>
+  <script src="/main.js?v=workspace-redesign-1" defer></script>
 </head>
 <body>
 <main class="page-shell">
@@ -25,7 +25,18 @@
   <div class="database-explorer-link"><a href="/database-lab.html">Database Explorer · SQL Playground &amp; ER Diagram ↗</a></div>
 
   <nav id="workspace-navigation" class="workspace-navigation" aria-label="Workspace sections" hidden></nav>
-  <p id="workspace-page-heading" class="workspace-page-heading" aria-live="polite">Problem Library</p>
+  <section id="workspace-hero" class="workspace-hero" hidden aria-live="polite">
+    <div class="workspace-hero-copy">
+      <p id="workspace-hero-kicker" class="workspace-hero-kicker">YOUR PRACTICE, AT A GLANCE</p>
+      <h2 id="workspace-page-heading" class="workspace-page-heading">Dashboard</h2>
+      <p id="workspace-hero-description" class="workspace-hero-description">A clear view of your progress, consistency and recent work.</p>
+    </div>
+    <div class="workspace-hero-index">
+      <span>WORKSPACE</span>
+      <strong id="workspace-hero-index">01</strong>
+      <small id="workspace-hero-role">LEARNER L1</small>
+    </div>
+  </section>
 
   <section id="notification-panel" class="workspace-card notification-panel" hidden>
     <div class="section-heading">
@@ -101,7 +112,7 @@
         <option value="">All difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option>
       </select>
       <select id="topic-filter" aria-label="Filter by topic"><option value="">All topics</option></select>
-      <label class="toggle"><input id="show-inactive" type="checkbox" disabled> Show retired</label>
+      <label class="toggle"><input id="show-inactive" type="checkbox" disabled> Show my submissions / retired</label>
     </div>
     <p id="notice" class="notice" role="status" aria-live="polite"></p>
   </section>
@@ -152,6 +163,10 @@
     <form id="problem-form">
       <input id="problem-id" type="hidden">
       <label>Title<input id="title" name="title" maxlength="150" required></label>
+      <label id="problem-organizer-field" class="wide" hidden>Organizer owner (optional)
+        <select id="problem-organizer"><option value="">No Organizer assigned</option></select>
+        <span id="problem-organizer-help" class="muted">Optional ownership assignment for Admin-created questions.</span>
+      </label>
       <label class="wide">Question type<select id="question-type" required><option value="CODING">Programming / coding</option><option value="MCQ_SINGLE">Single-choice MCQ</option><option value="MCQ_MULTI">Multiple-select MCQ</option><option value="TRUE_FALSE">True / False</option><option value="SHORT_ANSWER">Short answer</option><option value="FILL_BLANK">Fill in the blanks</option><option value="SQL">SQL / database question</option></select></label>
       <label id="question-options-field" class="wide" hidden>Answer options (one per line)<textarea id="question-options" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea></label>
       <label id="question-answer-field" class="wide" hidden>Correct answer / accepted answer(s)<textarea id="question-answer" rows="2" placeholder="For multiple-select, separate correct options with a new line."></textarea></label>
@@ -338,6 +353,13 @@
       <div class="section-heading"><div><p class="eyebrow">CONTENT GOVERNANCE</p><h3>Problem review queue</h3></div><button id="review-queue-refresh" class="secondary" type="button">Refresh queue</button></div>
       <p class="muted">Reviewers can approve a problem for publication, request changes, or reject it. Only approved problems become public.</p>
       <div id="review-queue" class="workspace-list"></div>
+      <section class="workspace-subsection">
+        <div class="section-heading">
+          <div><h4>Manual SQL answer review</h4><p class="muted">Evaluate SQL responses that require human marking.</p></div>
+          <button id="question-review-refresh" class="secondary" type="button">Refresh answers</button>
+        </div>
+        <div id="question-review-queue" class="workspace-list"></div>
+      </section>
     </section>
 
     <section id="mentor-panel" class="workspace-card" data-view="mentoring" hidden>
@@ -473,6 +495,7 @@
     <div id="question-answer-input"></div>
     <button id="question-answer-submit" type="button">Submit answer</button>
     <p id="question-answer-status" class="notice" role="status" aria-live="polite"></p>
+    <div id="question-answer-history" class="question-answer-history" aria-live="polite"></div>
   </section>
   <section id="submission-workspace" class="detail-section submission-workspace" hidden>
     <h3>Write and execute your solution</h3>

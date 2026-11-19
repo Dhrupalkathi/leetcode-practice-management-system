@@ -133,6 +133,7 @@ const WORKSPACE_VIEWS = {
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'problems', label: 'Problem library' },
     { id: 'contests', label: 'Contests' },
+    { id: 'mentoring', label: 'Mentor feedback' },
     { id: 'support', label: 'Support' }
   ],
   Organizer: [
@@ -159,6 +160,24 @@ const WORKSPACE_VIEWS = {
 };
 let activeWorkspaceView = null;
 
+const WORKSPACE_COPY = {
+  dashboard: ['YOUR PRACTICE, AT A GLANCE', 'A clear view of your progress, consistency and recent work.'],
+  problems: ['THE QUESTION CATALOGUE', 'Find a challenge, explore its requirements, and work through it at your own pace.'],
+  contests: ['COMPETITIVE PROGRAMMING', 'Manage scheduled contests, participation, problem sets and standings.'],
+  assessments: ['ASSESSMENT OPERATIONS', 'Build focused coding assessments and manage candidate invitations and reports.'],
+  support: ['HELP DESK', 'Track requests, follow responses and keep support work moving.'],
+  review: ['CONTENT GOVERNANCE', 'Review submitted questions and keep the public catalogue reliable.'],
+  mentoring: ['LEARNER DEVELOPMENT', 'Give useful, contextual feedback and follow learner progress.'],
+  judging: ['RESULTS GOVERNANCE', 'Review contest outcomes and record transparent decisions.'],
+  'admin-overview': ['SYSTEM INTELLIGENCE', 'Monitor platform activity, adoption and assessment operations.'],
+  'admin-users': ['IDENTITY & ACCESS', 'Manage accounts, role assignments and administrative history.']
+};
+const WORKSPACE_ICONS = {
+  dashboard: '▦', problems: '⌕', contests: '◉', assessments: '◈',
+  support: '↗', review: '✓', mentoring: '✳', judging: '⚖',
+  'admin-overview': '▤', 'admin-users': '♙'
+};
+
 function setWorkspaceView(viewId) {
   const navigation = $('#workspace-navigation');
   const available = [...navigation.querySelectorAll('[data-view-link]')].map(button => button.dataset.viewLink);
@@ -175,6 +194,11 @@ function setWorkspaceView(viewId) {
   });
   const activeButton = navigation.querySelector('[data-view-link="' + viewId + '"]');
   $('#workspace-page-heading').textContent = activeButton?.textContent || 'Workspace';
+  const copy = WORKSPACE_COPY[viewId] || ['WORKSPACE', 'Your tools and activity in one place.'];
+  $('#workspace-hero-kicker').textContent = copy[0];
+  $('#workspace-hero-description').textContent = copy[1];
+  $('#workspace-hero-role').textContent = (currentUser?.role_name || 'MEMBER').toUpperCase();
+  $('#workspace-hero-index').textContent = String(Math.max(1, available.indexOf(viewId) + 1)).padStart(2, '0');
 }
 
 function renderWorkspaceNavigation() {
@@ -182,22 +206,26 @@ function renderWorkspaceNavigation() {
   navigation.replaceChildren();
   if (!currentUser) {
     navigation.hidden = true;
+    document.body.classList.remove('has-workspace-rail');
+    $('#workspace-hero').hidden = true;
     document.querySelectorAll('[data-view]').forEach(section => {
       section.hidden = section.dataset.view !== 'problems';
     });
-    $('#workspace-page-heading').hidden = true;
     return;
   }
   const views = WORKSPACE_VIEWS[currentUser.role_category] || [];
   navigation.hidden = views.length === 0;
-  $('#workspace-page-heading').hidden = views.length === 0;
-  for (const view of views) {
+  $('#workspace-hero').hidden = views.length === 0;
+  document.body.classList.toggle('has-workspace-rail', views.length > 0);
+  views.forEach((view, index) => {
     const button = element('button', 'workspace-nav-link', view.label);
     button.type = 'button';
     button.dataset.viewLink = view.id;
+    button.dataset.index = String(index + 1).padStart(2, '0');
+    button.dataset.icon = WORKSPACE_ICONS[view.id] || '·';
     button.addEventListener('click', () => setWorkspaceView(view.id));
     navigation.append(button);
-  }
+  });
   const preferred = views.some(view => view.id === activeWorkspaceView)
     ? activeWorkspaceView
     : (views[0]?.id || null);
@@ -264,6 +292,60 @@ function element(tag, className, value) {
   return node;
 }
 
+async function loadQuestionReviewQueue() {
+  const container = $('#question-review-queue');
+  container.replaceChildren();
+  try {
+    const payload = await api('/api/questions/review-queue');
+    const attempts = payload.attempts || [];
+    if (!attempts.length) {
+      container.append(element('p', 'muted', 'No SQL answers are waiting for manual review.'));
+      return;
+    }
+    for (const attempt of attempts) {
+      const card = element('article', 'workspace-item question-review-card');
+      card.append(
+        element('h4', '', '#' + attempt.question_attempt_id + ' · ' + attempt.title),
+        element('p', 'muted', (attempt.learner_name || 'Learner') + ' · ' +
+          String(attempt.question_type || 'SQL').replaceAll('_', ' ') + ' · ' +
+          new Date(attempt.submitted_at).toLocaleString())
+      );
+      const answer = element('pre', 'question-review-answer',
+        typeof attempt.answer === 'string' ? attempt.answer : JSON.stringify(attempt.answer, null, 2));
+      card.append(element('span', 'review-test-label', 'Submitted answer'), answer);
+      const feedback = document.createElement('textarea');
+      feedback.rows = 2;
+      feedback.maxLength = 2000;
+      feedback.placeholder = 'Optional feedback for the learner…';
+      feedback.setAttribute('aria-label', 'Feedback for answer ' + attempt.question_attempt_id);
+      const actions = element('div', 'workspace-actions');
+      for (const [isCorrect, label] of [[true, 'Mark correct'], [false, 'Mark incorrect']]) {
+        const button = element('button', isCorrect ? '' : 'secondary', label);
+        button.type = 'button';
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            await api('/api/questions/answers/' + attempt.question_attempt_id + '/review', {
+              method: 'PATCH',
+              body: JSON.stringify({ is_correct: isCorrect, feedback: feedback.value })
+            });
+            workspaceMessage('Answer #' + attempt.question_attempt_id + ' reviewed.', false);
+            await loadQuestionReviewQueue();
+          } catch (error) {
+            workspaceMessage(error.message, true);
+            button.disabled = false;
+          }
+        });
+        actions.append(button);
+      }
+      card.append(feedback, actions);
+      container.append(card);
+    }
+  } catch (error) {
+    container.append(element('p', 'error', error.message));
+  }
+}
+
 async function loadReviewQueue() {
   const container = $('#review-queue');
   container.replaceChildren();
@@ -277,7 +359,7 @@ async function loadReviewQueue() {
       const statement = element('p','workspace-item-text',problem.problem_statement || 'No statement supplied.');
       const reviewDetails = document.createElement('details');
       reviewDetails.className = 'review-test-details';
-      const reviewSummary = element('summary','','Inspect topics and all test cases');
+      const reviewSummary = element('summary','','Inspect question setup, answer key and tests');
       reviewDetails.append(reviewSummary);
       try {
         const managed = await api('/api/problems/' + problem.problem_id + '/test-cases/manage');
@@ -285,6 +367,19 @@ async function loadReviewQueue() {
           topics.find((topic) => Number(topic.topic_id) === Number(topicId))?.name || ('Topic #' + topicId)
         );
         reviewDetails.append(element('p','muted','Topics: ' + (topicNames.join(', ') || 'None')));
+        const questionType=managed.question_type||problem.question_type||'CODING';
+        reviewDetails.append(element('p','muted','Question type: '+questionType.replaceAll('_',' ')));
+        if(questionType!=='CODING'){
+          const answerKey=managed.answer_key;
+          let answerText='';
+          if(questionType==='SQL') answerText=answerKey?.expected_result||'No marking guidance configured.';
+          else if(questionType==='MCQ_MULTI') answerText=Array.isArray(answerKey)?answerKey.join(' · '):'No answer key configured.';
+          else if(questionType==='TRUE_FALSE') answerText=answerKey===true?'True':answerKey===false?'False':'No answer key configured.';
+          else answerText=typeof answerKey==='string'?answerKey:'No answer key configured.';
+          const options=managed.question_config?.options||[];
+          if(options.length) reviewDetails.append(element('p','review-answer-key','Options: '+options.join(' · ')));
+          reviewDetails.append(element('p','review-answer-key','Expected answer / marking guide: '+answerText));
+        }
         for (const testCase of managed.test_cases || []) {
           const item = element('article','review-test-case');
           item.append(element('strong','', 'Test case ' + testCase.test_case_id +
@@ -569,7 +664,7 @@ async function loadJudgeContestReview() {
 async function loadRoleWorkspace() {
   if(!currentUser)return;
   const category=currentUser.role_category;
-  if(['Reviewer','Admin'].includes(category))await loadReviewQueue();
+  if(['Reviewer','Admin'].includes(category)){await loadReviewQueue();await loadQuestionReviewQueue();}
   if(['Mentor','Learner','Admin'].includes(category))await loadMentorFeedback();
   await loadSupportTickets();
   if(category==='Admin'){await loadAdminReports();await loadAdminUsers();await loadAdminAudit();}
@@ -611,7 +706,7 @@ function render() {
       problem.problem_statement || 'Open this problem to view its full details.';
     row.querySelector('.problem-meta').textContent =
       'Created ' + new Date(problem.created_at).toLocaleDateString() +
-      ' · Organizer ID ' + problem.created_by;
+      (problem.organizer_name ? ' · Organizer: ' + problem.organizer_name + (problem.organizer_organization_name ? ' · ' + problem.organizer_organization_name : '') : ' · Community submission');
     row.querySelector('.retired-tag').hidden = problem.is_active;
     row.querySelector('.retired-tag').textContent = problem.review_status === 'PENDING_REVIEW'
       ? 'Pending review'
@@ -622,7 +717,7 @@ function render() {
 
     const canManage = currentUser?.role_category === 'Admin' ||
       (currentUser?.role_category === 'Organizer' &&
-       Number(currentUser.organizer_id) === Number(problem.created_by));
+       Number(currentUser.organizer_id) === Number(problem.created_by)) || Boolean(problem.can_author_edit);
     row.querySelector('.edit-button').hidden = !canManage;
     row.querySelector('.retire-button').hidden = !canManage || !problem.is_active;
 
@@ -1094,20 +1189,86 @@ async function registerForActiveContest() {
   finally { button.disabled = false; }
 }
 
+async function loadProblemOrganizers(selectedId = null, editing = false) {
+  const field = $('#problem-organizer-field');
+  const select = $('#problem-organizer');
+  const help = $('#problem-organizer-help');
+  if (currentUser?.role_category !== 'Admin') {
+    field.hidden = true;
+    return;
+  }
+  field.hidden = false;
+  select.replaceChildren();
+  let organizers = [];
+  try {
+    const result = await api('/api/problem-organizers');
+    organizers = result.organizers || [];
+  } catch (error) {
+    const fallback = document.createElement('option');
+    fallback.value = '';
+    fallback.textContent = 'No Organizer assigned';
+    select.append(fallback);
+    select.disabled = false;
+    if (help) help.textContent = 'Organizer list could not be loaded. You can still submit this question without assigning an owner. ' + error.message;
+    return;
+  }
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'No Organizer assigned';
+  select.append(placeholder);
+  for (const organizer of organizers) {
+    const option = document.createElement('option');
+    option.value = organizer.organizer_id;
+    option.textContent = organizer.organizer_name + ' · ' + (organizer.organization_name || 'Unassigned organization');
+    select.append(option);
+  }
+  if (selectedId != null) {
+    const match = organizers.find(item => Number(item.organizer_id) === Number(selectedId));
+    if (match) select.value = String(selectedId);
+    else {
+      const unavailable = document.createElement('option');
+      unavailable.value = String(selectedId);
+      unavailable.textContent = 'Existing Organizer owner #' + selectedId + ' (not currently active)';
+      select.append(unavailable);
+      select.value = String(selectedId);
+    }
+  }
+  select.disabled = editing;
+  if (help) {
+    help.textContent = editing
+      ? 'Ownership is preserved while editing; this editor does not transfer problem ownership.'
+      : organizers.length
+        ? 'Optional. Assign this question to an active Organizer; otherwise it remains a community-submitted question.'
+        : 'No active Organizer profiles are available. You can still submit this question without assigning an owner.';
+  }
+}
+
 async function loadTopics() {
-  const payload = await api('/api/topics');
-  topics = payload.topics || [];
   const select = $('#topic-filter');
   select.replaceChildren();
   const all = document.createElement('option');
   all.value = '';
   all.textContent = 'All topics';
   select.append(all);
-  for (const topic of topics) {
-    const option = document.createElement('option');
-    option.value = topic.topic_id;
-    option.textContent = topic.name;
-    select.append(option);
+  try {
+    const payload = await api('/api/topics');
+    topics = payload.topics || [];
+    for (const topic of topics) {
+      const option = document.createElement('option');
+      option.value = topic.topic_id;
+      option.textContent = topic.name;
+      select.append(option);
+    }
+    return true;
+  } catch (error) {
+    topics = [];
+    const unavailable = document.createElement('option');
+    unavailable.value = '';
+    unavailable.textContent = 'Topics unavailable';
+    unavailable.disabled = true;
+    select.append(unavailable);
+    console.warn('Topic catalogue could not be loaded:', error.message);
+    return false;
   }
 }
 
@@ -1143,7 +1304,7 @@ function renderProblemTopicOptions(selectedIds = []) {
   container.replaceChildren();
   const selected = new Set(selectedIds.map(Number));
   if (!topics.length) {
-    const empty = element('p', 'muted', 'No topics are available yet. Add topics to the topic catalogue before creating a problem.');
+    const empty = element('p', 'muted', 'No topics are currently available. You can still submit a question without tags.');
     empty.setAttribute('role', 'status');
     container.append(empty);
     return;
@@ -1258,6 +1419,9 @@ async function openForm(problem = null) {
   $('#problem-form').reset();
   $('#form-error').textContent = '';
   $('#save-button').disabled = false;
+  $('#question-type').disabled = false;
+  $('#question-options').disabled = false;
+  $('#question-answer').disabled = false;
   $('#problem-id').value = problem?.problem_id ?? '';
   $('#form-title').textContent = problem ? 'Edit question #' + problem.problem_id : 'Create a question';
   $('#title').value = problem?.title ?? '';
@@ -1270,7 +1434,6 @@ async function openForm(problem = null) {
   $('#input-format').value = problem?.input_format ?? '';
   $('#output-format').value = problem?.output_format ?? '';
   $('#constraints').value = problem?.constraints ?? '';
-  const adminCreating = false;
   $('#form-panel').hidden = false;
   $('#problem-test-case-list').replaceChildren(element('p', 'muted', 'Loading test-case editor…'));
   $('#problem-test-cases-locked').hidden = true;
@@ -1281,12 +1444,28 @@ async function openForm(problem = null) {
   try {
     // Refresh the catalogue when the editor opens so it never depends on
     // whether the initial page-load request completed before the user clicked.
-    await loadTopics();
+    await Promise.all([
+      loadTopics(),
+      loadProblemOrganizers(problem?.created_by ?? null, Boolean(problem))
+    ]);
     renderProblemTopicOptions(problem?.topics?.map((topic) => topic.topic_id) || []);
-    const managed = problem && (problem.question_type || 'CODING') === 'CODING'
+    const managed = problem
       ? await api('/api/problems/' + problem.problem_id + '/test-cases/manage')
-      : { test_cases: [{ input_data: '', expected_output: '', is_hidden: false }], topic_ids: [], test_cases_locked: false };
+      : { test_cases: [], topic_ids: [], test_cases_locked: false, question_data_locked: false, answer_key: null, question_config: {} };
     renderProblemTopicOptions(managed.topic_ids || []);
+    const answerKey = managed.answer_key;
+    const questionType = $('#question-type').value;
+    $('#question-answer').value = questionType === 'SQL'
+      ? (answerKey?.expected_result || '')
+      : questionType === 'TRUE_FALSE'
+        ? (answerKey === true ? 'true' : answerKey === false ? 'false' : '')
+        : Array.isArray(answerKey) ? answerKey.join('\n') : (typeof answerKey === 'string' ? answerKey : '');
+    $('#question-options').value = (managed.question_config?.options || problem?.question_config?.options || []).join('\n');
+    const questionLocked = Boolean(managed.question_data_locked);
+    $('#question-type').disabled = questionLocked;
+    $('#question-options').disabled = questionLocked;
+    $('#question-answer').disabled = questionLocked;
+    if (questionLocked) $('#question-type-help').textContent += ' The answer key and question type are locked because attempts already exist.';
     $('#problem-test-case-list').replaceChildren();
     const locked = Boolean(managed.test_cases_locked);
     $('#problem-test-cases-locked').hidden = !locked;
@@ -1298,6 +1477,33 @@ async function openForm(problem = null) {
   } catch (error) {
     $('#problem-test-case-list').replaceChildren(element('p', 'error', error.message));
     $('#save-button').disabled = true;
+  }
+}
+
+async function loadQuestionAnswerHistory(problemId) {
+  const container = $('#question-answer-history');
+  container.replaceChildren();
+  try {
+    const payload = await api('/api/questions/' + problemId + '/answers/mine');
+    const attempts = payload.attempts || [];
+    if (!attempts.length) {
+      container.append(element('p', 'muted', 'Your previous answers will appear here.'));
+      return;
+    }
+    for (const attempt of attempts) {
+      const row = element('article', 'question-answer-attempt');
+      const statusText = attempt.review_status === 'PENDING_REVIEW'
+        ? 'Awaiting manual review'
+        : attempt.is_correct === true ? 'Correct'
+        : attempt.is_correct === false ? 'Incorrect' : 'Reviewed';
+      const status = element('strong', 'question-answer-status-tag', statusText);
+      const date = element('span', 'muted', new Date(attempt.submitted_at).toLocaleString());
+      row.append(status, date);
+      if (attempt.feedback) row.append(element('p', 'question-answer-feedback', attempt.feedback));
+      container.append(row);
+    }
+  } catch (error) {
+    container.append(element('p', 'error', 'Could not load answer history: ' + error.message));
   }
 }
 
@@ -1401,8 +1607,10 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
     const reviewList = $('#problem-review-history-list');
     reviewList.replaceChildren();
     const canSeeReviewHistory = currentUser?.role_category === 'Admin' ||
+      currentUser?.role_category === 'Reviewer' ||
       (currentUser?.role_category === 'Organizer' &&
-       Number(currentUser.organizer_id) === Number(problem.created_by));
+       Number(currentUser.organizer_id) === Number(problem.created_by)) ||
+      Boolean(problem.is_author);
     reviewSection.hidden = !canSeeReviewHistory;
     if (canSeeReviewHistory) {
       try {
@@ -1430,6 +1638,7 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
     }
 
     if(questionType==='CODING') await setupSubmissionWorkspace(problemId);
+    else if(currentUser) await loadQuestionAnswerHistory(problemId);
 
     const dialog = $('#problem-dialog');
     if (!dialog.open) dialog.showModal();
@@ -1649,22 +1858,33 @@ function renderDailyActivity(days) {
   const container = $('#daily-activity');
   container.replaceChildren();
   const max = Math.max(1, ...days.map((day) => Number(day.submissions) || 0));
+  if (!days.length || days.every(day => (Number(day.submissions) || 0) === 0)) {
+    container.append(element('p', 'activity-empty',
+      days.length
+        ? 'No completed practice submissions in the last 30 days. Your activity will build here.'
+        : 'Activity will appear here after your first completed submission.'));
+    return;
+  }
   for (const day of days) {
     const item = document.createElement('div');
     item.className = 'activity-day';
-    const bar = document.createElement('div');
-    bar.className = 'activity-bar';
     const count = Number(day.submissions) || 0;
-    bar.style.height = Math.max(3, Math.round(count / max * 74)) + 'px';
-    if (count === 0) bar.classList.add('is-empty');
+    const accepted = Number(day.accepted) || 0;
+    const level = count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((count / max) * 4)));
+    item.dataset.level = String(level);
     const date = new Date(day.activity_day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    item.title = date + ': ' + count + ' submissions, ' + (Number(day.accepted) || 0) + ' accepted';
+    item.title = date + ': ' + count + ' completed submissions, ' + accepted + ' accepted';
     item.setAttribute('aria-label', item.title);
+    const cell = document.createElement('span');
+    cell.className = 'activity-cell';
+    cell.setAttribute('aria-hidden', 'true');
     const label = document.createElement('span');
+    label.className = 'activity-day-label';
     label.textContent = Number(day.activity_day.slice(-2)) % 5 === 0 ? date : '';
-    item.append(bar, label);
+    item.append(cell, label);
     container.append(item);
   }
+  container.setAttribute('aria-label', 'Last 30 days of completed practice submissions. Focus or hover a day for its count.');
 }
 
 function renderTopicPerformance(topics) {
@@ -1925,6 +2145,7 @@ $('#progress-button').addEventListener('click', async () => {
 $('#progress-refresh').addEventListener('click', loadProgress);
 $('#workspace-refresh').addEventListener('click',loadRoleWorkspace);
 $('#review-queue-refresh').addEventListener('click',loadReviewQueue);
+$('#question-review-refresh').addEventListener('click',loadQuestionReviewQueue);
 $('#mentor-feedback-refresh').addEventListener('click',loadMentorFeedback);
 $('#support-refresh').addEventListener('click',loadSupportTickets);
 $('#admin-reports-refresh').addEventListener('click',loadAdminReports);
@@ -2071,6 +2292,7 @@ $('#question-answer-submit').addEventListener('click', async () => {
     $('#question-answer-submit').disabled = true;
     const result = await api('/api/questions/' + currentProblemId + '/answers', { method: 'POST', body: JSON.stringify({ answer }) });
     $('#question-answer-status').textContent = result.attempt.feedback || 'Answer submitted.';
+    await loadQuestionAnswerHistory(currentProblemId);
   } catch (error) { $('#question-answer-status').textContent = error.message; }
   finally { $('#question-answer-submit').disabled = false; }
 });
@@ -2093,6 +2315,9 @@ $('#problem-form').addEventListener('submit', async (event) => {
     topic_ids: collectProblemTopicIds(),
     test_cases: $('#question-type').value === 'CODING' ? collectProblemTestCases() : []
   };
+  if (currentUser?.role_category === 'Admin' && !id && $('#problem-organizer').value) {
+    body.organizer_id = Number($('#problem-organizer').value);
+  }
   $('#save-button').disabled = true;
   $('#form-error').textContent = '';
   try {
@@ -2102,7 +2327,7 @@ $('#problem-form').addEventListener('submit', async (event) => {
     });
     $('#form-panel').hidden = true;
     notify(result.message || (id ? 'Changes submitted for Reviewer approval.' : 'Problem submitted for Reviewer approval.'), 'success');
-    if (result.problem?.review_status === 'PENDING_REVIEW' && ['Admin','Reviewer','Organizer'].includes(currentUser?.role_category)) $('#show-inactive').checked = true;
+    if (result.problem?.review_status === 'PENDING_REVIEW') $('#show-inactive').checked = true;
     await loadProblems();
   } catch (error) {
     $('#form-error').textContent = error.message;
