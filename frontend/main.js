@@ -1858,8 +1858,11 @@ function renderDailyActivity(days) {
   const container = $('#daily-activity');
   container.replaceChildren();
   const max = Math.max(1, ...days.map((day) => Number(day.submissions) || 0));
-  if (!days.length) {
-    container.append(element('p', 'activity-empty', 'Activity will appear here after your first completed submission.'));
+  if (!days.length || days.every(day => (Number(day.submissions) || 0) === 0)) {
+    container.append(element('p', 'activity-empty',
+      days.length
+        ? 'No completed practice submissions in the last 30 days. Your activity will build here.'
+        : 'Activity will appear here after your first completed submission.'));
     return;
   }
   for (const day of days) {
