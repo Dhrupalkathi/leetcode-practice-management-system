@@ -1676,22 +1676,30 @@ function renderDailyActivity(days) {
   const container = $('#daily-activity');
   container.replaceChildren();
   const max = Math.max(1, ...days.map((day) => Number(day.submissions) || 0));
+  if (!days.length) {
+    container.append(element('p', 'activity-empty', 'Activity will appear here after your first completed submission.'));
+    return;
+  }
   for (const day of days) {
     const item = document.createElement('div');
     item.className = 'activity-day';
-    const bar = document.createElement('div');
-    bar.className = 'activity-bar';
     const count = Number(day.submissions) || 0;
-    bar.style.height = Math.max(3, Math.round(count / max * 74)) + 'px';
-    if (count === 0) bar.classList.add('is-empty');
+    const accepted = Number(day.accepted) || 0;
+    const level = count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((count / max) * 4)));
+    item.dataset.level = String(level);
     const date = new Date(day.activity_day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    item.title = date + ': ' + count + ' submissions, ' + (Number(day.accepted) || 0) + ' accepted';
+    item.title = date + ': ' + count + ' completed submissions, ' + accepted + ' accepted';
     item.setAttribute('aria-label', item.title);
+    const cell = document.createElement('span');
+    cell.className = 'activity-cell';
+    cell.setAttribute('aria-hidden', 'true');
     const label = document.createElement('span');
+    label.className = 'activity-day-label';
     label.textContent = Number(day.activity_day.slice(-2)) % 5 === 0 ? date : '';
-    item.append(bar, label);
+    item.append(cell, label);
     container.append(item);
   }
+  container.setAttribute('aria-label', 'Last 30 days of completed practice submissions. Focus or hover a day for its count.');
 }
 
 function renderTopicPerformance(topics) {
