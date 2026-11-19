@@ -956,3 +956,81 @@ Run these stages in order. Record test date, account and role, steps performed, 
 - **Why:** Platform analytics and account administration are separate major responsibilities and should not be mixed into one long page.
 - **How:** Sign in as Admin, open Platform overview, then User management. Confirm the report cards/charts appear only in the overview destination and account search/role controls appear only in User management. Navigate between them and reload the page.
 - **Expected:** Both destinations render independently within the Admin workspace; no Learner or Organizer sees either destination; existing report and account-management actions remain available.
+
+
+---
+
+## R. Redesign and regression additions (2026-11-19)
+
+These checks were added after the role-workspace redesign and the cross-feature audit. They are not marked as passed until the browser workflow and resulting PostgreSQL records have been verified.
+
+### R-01 — Admin problem ownership selector
+- **What:** Create a question as Admin with and without an assigned Organizer.
+- **How:** Open the question editor, inspect the active Organizer names and organization labels, submit both variants.
+- **Expected:** The selected owner is stored in `problem.created_by`; the actual submitter remains in `submitted_by_user_id`; an unassigned community question remains valid.
+
+### R-02 — Community author can see their own pending question
+- **What:** Submit a question as a non-Organizer account and reopen the problem library.
+- **How:** Enable the inactive/submission filter and inspect the question.
+- **Expected:** The author can see their own pending submission; unrelated users cannot see it.
+
+### R-03 — Author receives review feedback
+- **What:** Ask a Reviewer to request changes on a community-submitted question.
+- **How:** Sign back in as the author, open the question and inspect its review history.
+- **Expected:** The author can read the review decision and comments, but cannot edit questions that are merely pending or already rejected.
+
+### R-04 — Author can resubmit requested changes
+- **What:** Edit a question after a Reviewer selects CHANGES_REQUESTED.
+- **How:** Use the author's account to update the question, options/answer key or coding test cases as appropriate.
+- **Expected:** The same question record returns to PENDING_REVIEW; ownership and submitter identity are preserved; the Reviewer queue receives the resubmission.
+
+### R-05 — Public answer-key confidentiality
+- **What:** Inspect public problem-list and problem-detail API responses for every non-coding question type.
+- **How:** Create MCQ, multiple-select, true/false, short-answer, fill-blank and SQL questions, then inspect unauthenticated responses.
+- **Expected:** Public configuration contains only learner-visible options; correct answers and SQL marking criteria remain in the private answer-key table and are returned only to authorized reviewers/editors.
+
+### R-06 — Non-coding question edit round-trip
+- **What:** Edit each non-coding question type before any learner attempt exists.
+- **How:** Reopen the editor and inspect options, correct answers and SQL marking criteria before saving.
+- **Expected:** The editor is prefilled accurately; saving does not silently erase or alter the answer key.
+
+### R-07 — Answer-key history protection
+- **What:** Attempt to change a question type, options or answer key after learner attempts exist.
+- **Expected:** The server rejects changes that would invalidate historical grading; the existing attempts and answer key remain intact.
+
+### R-08 — Manual SQL answer review
+- **What:** Submit a SQL question response and review it as Reviewer/Admin.
+- **How:** Use the Manual SQL Answer Review queue to mark the response correct or incorrect and add feedback.
+- **Expected:** The decision and feedback persist against the correct attempt and are visible to the learner in answer history.
+
+### R-09 — Learner answer history
+- **What:** Reopen a non-coding question after submitting one or more answers.
+- **Expected:** The learner sees their own attempt dates, grading status and feedback; another learner cannot read those records.
+
+### R-10 — Assessment organization change persists
+- **What:** Edit an upcoming assessment as Admin and change its organization.
+- **Expected:** The selected organization is persisted and reflected in subsequent assessment lists and detail views; Organizer edits cannot change organization scope.
+
+### R-11 — Local date/time round-trip
+- **What:** Create and edit contests and assessments from a browser using a non-UTC timezone.
+- **Expected:** Displayed local start/end times remain consistent after save, reload and edit; the server receives timezone-aware instants.
+
+### R-12 — Learner mentor-feedback destination
+- **What:** Sign in as Learner and open Mentor feedback from workspace navigation.
+- **Expected:** The learner can read feedback scoped to their account but cannot submit mentor feedback.
+
+### R-13 — Role workspace navigation
+- **What:** Sign in with representative accounts for Learner, Organizer, Reviewer, Mentor, Support, Judge, Moderator and Admin.
+- **Expected:** Each role sees only its intended navigation destinations; every existing API authorization rule remains enforced server-side.
+
+### R-14 — Activity heatmap states
+- **What:** Inspect the Learner dashboard with no activity, sparse activity and dense activity.
+- **Expected:** The last-30-days visualization remains compact, legible and informative without a large empty chart region.
+
+### R-15 — Frontend static contracts
+- **What:** Run `npm run build`.
+- **Expected:** All JavaScript files pass syntax checks; page scripts reference existing HTML IDs; page IDs are unique; local script/style assets exist; CSS braces are balanced.
+
+### R-16 — Backup and rollback readiness
+- **What:** Before merging the redesign into production, verify the GitHub pre-redesign backup branch and create a Neon database branch/snapshot from the current production branch.
+- **Expected:** Application code and production data each have independent recovery points; no production migration or destructive operation begins before both are confirmed.
