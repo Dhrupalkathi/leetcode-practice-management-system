@@ -1007,3 +1007,43 @@ footer { color: #71877d; }
 @media (max-width: 560px) {
   .question-answer-attempt { grid-template-columns: 1fr; }
 }
+
+
+/* Finish the visual pass across governance, reporting and account surfaces. */
+.admin-reports-section { border-color: rgba(87,119,109,.25); }
+.admin-report-card {
+  border-color: rgba(93,139,125,.28);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #172725, #111e1e);
+}
+.admin-report-label { color: #92a89e; }
+.admin-report-value { color: #dcebe2; }
+.admin-report-problem, .admin-assessment-row {
+  border-color: rgba(82,117,107,.25);
+  color: #aebfb5;
+}
+.admin-report-problem strong, .admin-assessment-row strong { color: #e2ece6; }
+.admin-report-rate { color: var(--teal); }
+.admin-activity-track { background: #233a34; }
+.admin-activity-fill { background: linear-gradient(90deg, #4d8b79, #91d0b5); }
+.review-test-case { border-color: rgba(82,117,107,.25); }
+.review-test-case strong { color: #dfb28d; }
+.review-test-data { background: #091414; color: #c6e2d4; }
+.notification-card {
+  border-color: rgba(93,139,125,.28);
+  border-left-color: var(--teal);
+  border-radius: 10px;
+  background: #142120;
+}
+.notification-card.is-read { border-left-color: #50635b; }
+.notification-title { color: #e2ece6; }
+.notification-message { color: #afc0b6; }
+.notification-meta { color: #83988e; }
+.notification-mark-read { background: #1d3430; color: #bfe4d3; border-color: #3d6458; }
+.profile-form label, .workspace-form label { color: #aebfb5; }
+.profile-password-section { border-color: rgba(82,117,107,.25); }
+.profile-password-section h3 { color: #dfeae2; }
+.assessment-status, .contest-status { border-color: #405a50; background: #1b3029; color: #c3e1d2; }
+.assessment-status.completed, .contest-status.completed { border-color: #3c725b; background: #19382b; color: #9cdbb7; }
+.assessment-status.upcoming, .contest-status.upcoming { border-color: #6a5639; background: #352d20; color: #e4c28c; }
+.assessment-status.ended, .contest-status.ended { border-color: #48534c; background: #202b27; color: #aab9b0; }
