@@ -1304,7 +1304,7 @@ function renderProblemTopicOptions(selectedIds = []) {
   container.replaceChildren();
   const selected = new Set(selectedIds.map(Number));
   if (!topics.length) {
-    const empty = element('p', 'muted', 'No topics are available yet. Add topics to the topic catalogue before creating a problem.');
+    const empty = element('p', 'muted', 'No topics are currently available. You can still submit a question without tags.');
     empty.setAttribute('role', 'status');
     container.append(empty);
     return;
