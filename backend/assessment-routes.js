@@ -179,16 +179,25 @@ module.exports = function createAssessmentRouter({ pool, authRequired, allowRole
     const input = validateAssessment(req.body);
     if (input.errors.length) return res.status(400).json({ error: 'Validation failed.', details: input.errors });
     try {
-      if (!await canAccessAssessment(req.user,assessmentId)) return res.status(404).json({ error: 'Assessment not found.' });
+      const scope = await organizationScope(req.user);
+      if (!scope || !await canAccessAssessment(req.user,assessmentId)) return res.status(404).json({ error: 'Assessment not found.' });
+      let organizationId = null;
+      if (scope.admin && Object.prototype.hasOwnProperty.call(req.body,'organization_id')) {
+        organizationId = positiveId(req.body.organization_id);
+        if (!organizationId) return res.status(400).json({ error: 'Select a valid organization.' });
+        const org = await pool.query('SELECT 1 FROM public.organization WHERE organization_id=$1',[organizationId]);
+        if (!org.rowCount) return res.status(400).json({ error: 'Organization not found.' });
+      }
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
         const updated = await client.query(
           `UPDATE public.assessment
-           SET title=$1,description=$2,start_time=$3,end_time=$4,time_limit_minutes=$5
-           WHERE assessment_id=$6 AND start_time>CURRENT_TIMESTAMP
+           SET title=$1,description=$2,start_time=$3,end_time=$4,time_limit_minutes=$5,
+               organization_id=COALESCE($6,organization_id)
+           WHERE assessment_id=$7 AND start_time>CURRENT_TIMESTAMP
            RETURNING assessment_id,title,description,start_time,end_time,time_limit_minutes,is_active,organization_id`,
-          [input.title,input.description || null,input.startTime,input.endTime,input.timeLimit,assessmentId]);
+          [input.title,input.description || null,input.startTime,input.endTime,input.timeLimit,organizationId,assessmentId]);
         if (!updated.rowCount) {
           await client.query('ROLLBACK');
           return res.status(409).json({ error: 'Assessment not found or has already started.' });
