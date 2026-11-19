@@ -220,7 +220,7 @@ function createSubmissionRouter({ pool, authRequired, allowRoles }) {
 
     try {
       const problemResult = await pool.query(
-        'SELECT problem_id FROM public.problem WHERE problem_id=$1 AND is_active=TRUE',
+        'SELECT problem_id FROM public.problem WHERE problem_id=$1 AND is_active=TRUE AND COALESCE(question_type,'CODING')='CODING'',
         [problemId]
       );
 
