@@ -1480,6 +1480,33 @@ async function openForm(problem = null) {
   }
 }
 
+async function loadQuestionAnswerHistory(problemId) {
+  const container = $('#question-answer-history');
+  container.replaceChildren();
+  try {
+    const payload = await api('/api/questions/' + problemId + '/answers/mine');
+    const attempts = payload.attempts || [];
+    if (!attempts.length) {
+      container.append(element('p', 'muted', 'Your previous answers will appear here.'));
+      return;
+    }
+    for (const attempt of attempts) {
+      const row = element('article', 'question-answer-attempt');
+      const statusText = attempt.review_status === 'PENDING_REVIEW'
+        ? 'Awaiting manual review'
+        : attempt.is_correct === true ? 'Correct'
+        : attempt.is_correct === false ? 'Incorrect' : 'Reviewed';
+      const status = element('strong', 'question-answer-status-tag', statusText);
+      const date = element('span', 'muted', new Date(attempt.submitted_at).toLocaleString());
+      row.append(status, date);
+      if (attempt.feedback) row.append(element('p', 'question-answer-feedback', attempt.feedback));
+      container.append(row);
+    }
+  } catch (error) {
+    container.append(element('p', 'error', 'Could not load answer history: ' + error.message));
+  }
+}
+
 function addDetailField(container, label, value) {
   const section = document.createElement('section');
   section.className = 'detail-field';
@@ -1611,6 +1638,7 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
     }
 
     if(questionType==='CODING') await setupSubmissionWorkspace(problemId);
+    else if(currentUser) await loadQuestionAnswerHistory(problemId);
 
     const dialog = $('#problem-dialog');
     if (!dialog.open) dialog.showModal();
@@ -2261,6 +2289,7 @@ $('#question-answer-submit').addEventListener('click', async () => {
     $('#question-answer-submit').disabled = true;
     const result = await api('/api/questions/' + currentProblemId + '/answers', { method: 'POST', body: JSON.stringify({ answer }) });
     $('#question-answer-status').textContent = result.attempt.feedback || 'Answer submitted.';
+    await loadQuestionAnswerHistory(currentProblemId);
   } catch (error) { $('#question-answer-status').textContent = error.message; }
   finally { $('#question-answer-submit').disabled = false; }
 });
