@@ -359,7 +359,7 @@ async function loadReviewQueue() {
       const statement = element('p','workspace-item-text',problem.problem_statement || 'No statement supplied.');
       const reviewDetails = document.createElement('details');
       reviewDetails.className = 'review-test-details';
-      const reviewSummary = element('summary','','Inspect topics and all test cases');
+      const reviewSummary = element('summary','','Inspect question setup, answer key and tests');
       reviewDetails.append(reviewSummary);
       try {
         const managed = await api('/api/problems/' + problem.problem_id + '/test-cases/manage');
@@ -367,6 +367,19 @@ async function loadReviewQueue() {
           topics.find((topic) => Number(topic.topic_id) === Number(topicId))?.name || ('Topic #' + topicId)
         );
         reviewDetails.append(element('p','muted','Topics: ' + (topicNames.join(', ') || 'None')));
+        const questionType=managed.question_type||problem.question_type||'CODING';
+        reviewDetails.append(element('p','muted','Question type: '+questionType.replaceAll('_',' ')));
+        if(questionType!=='CODING'){
+          const answerKey=managed.answer_key;
+          let answerText='';
+          if(questionType==='SQL') answerText=answerKey?.expected_result||'No marking guidance configured.';
+          else if(questionType==='MCQ_MULTI') answerText=Array.isArray(answerKey)?answerKey.join(' · '):'No answer key configured.';
+          else if(questionType==='TRUE_FALSE') answerText=answerKey===true?'True':answerKey===false?'False':'No answer key configured.';
+          else answerText=typeof answerKey==='string'?answerKey:'No answer key configured.';
+          const options=managed.question_config?.options||[];
+          if(options.length) reviewDetails.append(element('p','review-answer-key','Options: '+options.join(' · ')));
+          reviewDetails.append(element('p','review-answer-key','Expected answer / marking guide: '+answerText));
+        }
         for (const testCase of managed.test_cases || []) {
           const item = element('article','review-test-case');
           item.append(element('strong','', 'Test case ' + testCase.test_case_id +
