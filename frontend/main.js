@@ -1610,7 +1610,7 @@ async function openProblemDetails(problemId, contestId = null, contestStatus = n
       currentUser?.role_category === 'Reviewer' ||
       (currentUser?.role_category === 'Organizer' &&
        Number(currentUser.organizer_id) === Number(problem.created_by)) ||
-      Number(currentUser?.user_id) === Number(problem.submitted_by_user_id);
+      Boolean(problem.is_author);
     reviewSection.hidden = !canSeeReviewHistory;
     if (canSeeReviewHistory) {
       try {
