@@ -292,6 +292,60 @@ function element(tag, className, value) {
   return node;
 }
 
+async function loadQuestionReviewQueue() {
+  const container = $('#question-review-queue');
+  container.replaceChildren();
+  try {
+    const payload = await api('/api/questions/review-queue');
+    const attempts = payload.attempts || [];
+    if (!attempts.length) {
+      container.append(element('p', 'muted', 'No SQL answers are waiting for manual review.'));
+      return;
+    }
+    for (const attempt of attempts) {
+      const card = element('article', 'workspace-item question-review-card');
+      card.append(
+        element('h4', '', '#' + attempt.question_attempt_id + ' · ' + attempt.title),
+        element('p', 'muted', (attempt.learner_name || 'Learner') + ' · ' +
+          String(attempt.question_type || 'SQL').replaceAll('_', ' ') + ' · ' +
+          new Date(attempt.submitted_at).toLocaleString())
+      );
+      const answer = element('pre', 'question-review-answer',
+        typeof attempt.answer === 'string' ? attempt.answer : JSON.stringify(attempt.answer, null, 2));
+      card.append(element('span', 'review-test-label', 'Submitted answer'), answer);
+      const feedback = document.createElement('textarea');
+      feedback.rows = 2;
+      feedback.maxLength = 2000;
+      feedback.placeholder = 'Optional feedback for the learner…';
+      feedback.setAttribute('aria-label', 'Feedback for answer ' + attempt.question_attempt_id);
+      const actions = element('div', 'workspace-actions');
+      for (const [isCorrect, label] of [[true, 'Mark correct'], [false, 'Mark incorrect']]) {
+        const button = element('button', isCorrect ? '' : 'secondary', label);
+        button.type = 'button';
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            await api('/api/questions/answers/' + attempt.question_attempt_id + '/review', {
+              method: 'PATCH',
+              body: JSON.stringify({ is_correct: isCorrect, feedback: feedback.value })
+            });
+            workspaceMessage('Answer #' + attempt.question_attempt_id + ' reviewed.', false);
+            await loadQuestionReviewQueue();
+          } catch (error) {
+            workspaceMessage(error.message, true);
+            button.disabled = false;
+          }
+        });
+        actions.append(button);
+      }
+      card.append(feedback, actions);
+      container.append(card);
+    }
+  } catch (error) {
+    container.append(element('p', 'error', error.message));
+  }
+}
+
 async function loadReviewQueue() {
   const container = $('#review-queue');
   container.replaceChildren();
@@ -597,7 +651,7 @@ async function loadJudgeContestReview() {
 async function loadRoleWorkspace() {
   if(!currentUser)return;
   const category=currentUser.role_category;
-  if(['Reviewer','Admin'].includes(category))await loadReviewQueue();
+  if(['Reviewer','Admin'].includes(category)){await loadReviewQueue();await loadQuestionReviewQueue();}
   if(['Mentor','Learner','Admin'].includes(category))await loadMentorFeedback();
   await loadSupportTickets();
   if(category==='Admin'){await loadAdminReports();await loadAdminUsers();await loadAdminAudit();}
@@ -2047,6 +2101,7 @@ $('#progress-button').addEventListener('click', async () => {
 $('#progress-refresh').addEventListener('click', loadProgress);
 $('#workspace-refresh').addEventListener('click',loadRoleWorkspace);
 $('#review-queue-refresh').addEventListener('click',loadReviewQueue);
+$('#question-review-refresh').addEventListener('click',loadQuestionReviewQueue);
 $('#mentor-feedback-refresh').addEventListener('click',loadMentorFeedback);
 $('#support-refresh').addEventListener('click',loadSupportTickets);
 $('#admin-reports-refresh').addEventListener('click',loadAdminReports);
