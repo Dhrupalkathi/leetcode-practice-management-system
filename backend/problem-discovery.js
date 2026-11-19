@@ -374,6 +374,20 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
     } catch(error){next(error);}
   });
 
+  router.get('/questions/:id/answers/mine', authRequired, async (req,res,next) => {
+    const id=Number(req.params.id);
+    if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid question ID.'});
+    try {
+      const result=await pool.query(
+        `SELECT question_attempt_id,is_correct,review_status,feedback,submitted_at
+         FROM public.question_attempt
+         WHERE problem_id=$1 AND user_id=$2
+         ORDER BY submitted_at DESC LIMIT 10`,
+        [id,req.user.user_id]);
+      res.json({attempts:result.rows});
+    } catch(error){next(error);}
+  });
+
   router.post('/questions/:id/answers', authRequired, async (req,res,next) => {
     const id=Number(req.params.id);
     if(!Number.isSafeInteger(id)||id<=0) return res.status(400).json({error:'Invalid question ID.'});
