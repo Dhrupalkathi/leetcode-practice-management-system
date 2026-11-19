@@ -353,6 +353,13 @@
       <div class="section-heading"><div><p class="eyebrow">CONTENT GOVERNANCE</p><h3>Problem review queue</h3></div><button id="review-queue-refresh" class="secondary" type="button">Refresh queue</button></div>
       <p class="muted">Reviewers can approve a problem for publication, request changes, or reject it. Only approved problems become public.</p>
       <div id="review-queue" class="workspace-list"></div>
+      <section class="workspace-subsection">
+        <div class="section-heading">
+          <div><h4>Manual SQL answer review</h4><p class="muted">Evaluate SQL responses that require human marking.</p></div>
+          <button id="question-review-refresh" class="secondary" type="button">Refresh answers</button>
+        </div>
+        <div id="question-review-queue" class="workspace-list"></div>
+      </section>
     </section>
 
     <section id="mentor-panel" class="workspace-card" data-view="mentoring" hidden>
