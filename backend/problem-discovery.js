@@ -120,7 +120,9 @@ module.exports = function createProblemDiscoveryRouter({ pool, authRequired, all
       const result=await pool.query(
         `SELECT p.problem_id,p.title,p.problem_statement,p.input_format,p.output_format,
                 p.constraints,p.difficulty,p.is_active,p.review_status,p.created_at,p.created_by,
-                p.question_type,p.question_config,p.submitted_by_user_id,
+                p.question_type,CASE WHEN p.question_type IN ('MCQ_SINGLE','MCQ_MULTI')
+                       THEN jsonb_build_object('options',COALESCE(p.question_config->'options','[]'::jsonb))
+                       ELSE '{}'::jsonb END AS question_config,p.submitted_by_user_id,
                 COALESCE((SELECT json_agg(json_build_object('topic_id',t.topic_id,'name',t.name,'description',t.description) ORDER BY t.name)
                   FROM public.problem_topic pt JOIN public.topic t ON t.topic_id=pt.topic_id
                   WHERE pt.problem_id=p.problem_id),'[]'::json) AS topics,
